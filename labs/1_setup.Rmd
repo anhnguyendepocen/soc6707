@@ -1,6 +1,6 @@
 ---
 title: 'Week 1: Set-up and basics'
-author: "Monica Alexander^[Aspects of this lab were improved from input from Abtin Parnia.]"
+author: "Monica Alexander^[Thanks to Abtin Parnia who greatly improved aspects of this lab.]"
 date: "15/01/2021"
 output: pdf_document
 ---
@@ -45,7 +45,7 @@ RStudio projects are associated with R working directories. They are good to use
 - Make it easy to divide your work into multiple contexts
 - Can open multiple projects at one time in separate windows
 
-To make a new project in RStudio, go to File --> New Project. If you've already set up a repo for this class, then select 'Existing Directory' and choose the folder that will contain all your class materials. This will open a new RStudio window, that will be called the name of your folder. 
+To make a new project in RStudio, go to File --> New Project. If you've already set up a folder for this class, then select 'Existing Directory' and choose the folder that will contain all your class materials. This will open a new RStudio window, that will be called the name of your folder. 
 
 ## A note about folder structure and saving files
 
@@ -178,15 +178,17 @@ Once tidyverse is installed, load it in using the library command:
 library(tidyverse)
 ```
 
-# Set Working Director
+# Set Working Directory
 
 For R to access your files, it needs to know where your files are located. You can set your working directory by going to Menu --> Session --> Set Working Directory... 
 
-# Reading in the GSS
+NOTE: if you are using an R Project, you do not need to do this!
+
+# Reading in data 
 
 The tidyverse package contains a lot of useful functions. One is `read_csv` function, which allows us to read in data from CSV files. 
 
-Read in the GSS csv file. Note that you will probably have to change the file path below depending on where you saved the gss file. If you are having trouble it may help to change your working directory. You can do this by going to Menu --> Session --> Set Working Directory...
+We are going to read in the GSS csv file. Note that you will probably have to change the file path below depending on where you saved the gss file. 
 
 ```{r}
 # make sure the file name points to where you've saved the gss file
@@ -301,7 +303,7 @@ Using `filter`, `select`, and `summarize` commands, find out if the mean age is 
 
 1. Create a new R Markdown file for these review questions
 2. Create a variable called "my_name" and assign a character string containing your name to it
-3. Find the mean age of immigration (age_immigration) of respondents in the GSS
+3. Find the mean age at first birth (age_at_first_birth) of respondents in the GSS    
 4. Create a new dataset that just contains GSS respondents who are less than 20 years old. 
 5. How many rows does the dataset in step 4 have?
 6. What is the largest case id in the dataset in step 4?

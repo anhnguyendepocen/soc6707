@@ -18,6 +18,8 @@ library(here)
 - Why learn statistics?
 - Review concepts
 - Introduction to R
+- (Short break)
+- Lab
 
 # Overview of course
 
@@ -49,7 +51,7 @@ What I work on: a mix of demography, applied stats, epidemiology and computation
 
 For the most part, this course will be delivered in **online synchronous** format. 
 
-- Lectures, tutorials, and office hours online through BBCollaborate (accessed through Quercus)
+- Lectures and office hours online through BBCollaborate (accessed through Quercus)
 - Lectures will be recorded such that they can be accessed at a later date
 - TBD: maybe some short pre-recorded materials
 
@@ -57,17 +59,17 @@ For the most part, this course will be delivered in **online synchronous** forma
 
 This course introduces statistical techniques and methods to analyze data to draw inferences about social processes. You will learn
 
-- How to read in, describe, plot and analyze data in a statistical software that uses a programming language
+- How to read in, describe, plot and analyze data in a statistical software that uses a programming language (R)
 - Some important methods of statistical analysis to explore relationships between social phenomena
 - How to assess and evaluate the suitability and performance of statistical methods in different contexts
 
-Methods covered include generalized linear models, Bayesian inference and multilevel models. 
+Methods covered include generalized linear models, Bayesian inference, and multilevel models. 
 
 ## General philosophies
 
-- Understanding your data
+- Understand your data (EDA! Plot!)
 - Reproducibility
-- Knowing when and when not to use methods 
+- Knowing when but also when not to use methods 
 
 This course will be very hands-on with coding and data munging. The learning curve for R is steep but will (hopefully?!) pay off. 
 
@@ -146,7 +148,7 @@ More detail in course outline, and as we go along.
 
 ## Doing okay?
 
-Whether it is the chaos of 2020 getting you down, or something else, it is always okay to reach out for support!
+It is always okay to reach out for support.
 
 - My Student Support Program – My SSP – mental health support for all U of T students. Free, confidential, immediate support. Available 24/7 in multiple languages. Download the My SSP App or call 1-844-451-9700. uoft.me/myssp
 - Call Good2Talk. Free, confidential helpline with professional counseling, information and referrals for mental health, addictions and well-being, 24/7/365 1-866-925-5454
@@ -235,7 +237,7 @@ What is a population? Depends on the context of study
 
 ## Samples
 
-Say we want to study the relationship between hours studied and overall achievement for all university students in Canada. 
+Say we want to study the relationship between hours studied and job placement for all graduate university students in Canada. 
 
 - Not really plausible to get data on this for the whole of Canada.
 - In reality, we would collect data on a **subset** or **sample** of the population and try and generalize to the whole of Canada. 
@@ -243,10 +245,10 @@ Say we want to study the relationship between hours studied and overall achievem
 
 ## Samples
 
-Our example: the relationship between hours studied and overall achievement for all university students in Canada.
+Our example: the relationship between hours studied and job placement for all university students in Canada.
 
-- We could plausibly measure the hours studied and overall achievement in SOC6707
-- This class would be a sample of the population of interest, because you are all university students in Canada.
+- We could plausibly measure the hours studied and job placement for those student who took SOC6707
+- This class would be a sample of the population of interest, because you are all graduate university students in Canada.
 
 Is it a good sample? What do I mean by good?
 
@@ -282,7 +284,7 @@ What is the sampling method in our example?
 - **Descriptive statistics**: uses the data to provide descriptions of the population, either through numerical calculations or graphs or tables. 
 - **Inferential statistics**: makes inferences and predictions about a population based on a sample of data taken from the population in question.
 
-We will cover both types in this course. Understanding patterns in descriptive statistics is essential to doing good inferential statistics
+We will cover both types in this course. Understanding patterns in descriptive statistics is essential to doing good inferential statistics.
 
 ## Variables
 
@@ -290,6 +292,7 @@ Traits, characteristics, outcomes that we are interested in. e.g.
 
 - hours of study
 - course grade
+- industry of job placement
 - province of residence
 - age
 - self-reported health
@@ -307,7 +310,7 @@ Often we are interested in studying the relationship between two or more variabl
     
 I will use these terms interchangeably. 
 
-What is the independent and dependent variable in our example?
+What are the independent and dependent variables in our example?
 
 ## Types of measurement of variables
 
@@ -350,8 +353,8 @@ We will see a fair bit of math notation in this class, but there are some common
 
 Pretend you have a set of observations of a quantitative variable, e.g. everyone's height in this class. We often want to **summarize** our set of observations with one or more numbers. Often interested in:
 
-- Measures of central tendency, i.e. what would we expect someone's height to be, what's the most common height
-- Measures of spread, i.e. what are the ranges of heights observed, what is the deviation of heights away from the expected height?
+- Measures of **central tendency**, i.e. what would we expect someone's height to be, what's the most common height
+- Measures of **spread**, i.e. what are the ranges of heights observed, what is the deviation of heights away from the expected height?
 
 ## Measures of central tendency
 
@@ -443,17 +446,18 @@ sqrt(var(x))
 
 - You will need to download and install both R and RStudio
 - More info on Quercus
-- Try and do this before the lab
+- Please do this as soon as possible if you haven't already
 
 ## What is R?
 
 - R is a programming language for statistical computing and graphics
 - Using R is like speaking another language (but you type it)
 
-You may have used other programs to do statistical calculations before (Excel, SPSS)
+You may have used other programs to do statistical calculations before (Excel, SPSS, Stata)
 
 - With R you have to give the computer typed commands in order for it to do stats (rather than clicking buttons)
 - Much more powerful methods
+- (In my opinion??) better than Stata for a bunch of reasons
 
 \begin{figure}
 \centering
@@ -464,7 +468,7 @@ You may have used other programs to do statistical calculations before (Excel, S
 
 - RStudio is an integrated development environment for R. 
 - It makes it easier to write R code and visualize inputs and outputs. 
-- You will need to download and install both R and RStudio, details in course outline (also in lab 1)
+- You will need to download and install both R and RStudio
 
 Think of a car analogy:
 
@@ -714,3 +718,8 @@ You should hopefully have R and RStudio already installed. If not, this is the f
     + R4DS is the most relevant textbook for learning "tidyverse" R
     + Telling stories with data: https://www.tellingstorieswithdata.com/01-03-r_essentials.html
 - Lab time and office hours
+- Google, google, google
+    + Don't expect you will be able to code for memory to start off with
+    + Think about what you want to do and then if you don't know how to do it, Google key terms 
+    + Googling errors is also very helpful
+    + I mostly learned R from the formidable teacher, Stack Overflow
