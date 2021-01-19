@@ -1,0 +1,158 @@
+---
+title: "Week 2: Important data manipulation functions"
+author: "Monica Alexander"
+date: "19/01/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# By the end of this lab you should know 
+
+- How to read in data from a csv file
+- How to view a dataset in R
+- What the pipe `%>%` is 
+- The functions `select`, `arrange`, `filter`, `mutate` and `summarize`
+
+
+# Overview
+
+This lab is exactly the same as the end of the lab from the first week -- the part we didn't end up covering. Here we introduce some important functions from the `tidyverse` package for data manipulation and exploration. 
+
+# Load in the `tidyverse` package
+
+The first thing we need to do (and the first thing you will usually need to do) is to load in the `tidyverse` R package
+
+```{r}
+library(tidyverse)
+```
+
+
+# Reading in data 
+
+We now want to read in the GSS data: 
+
+```{r}
+# make sure the file name points to where you've saved the gss file
+# for example, I have it saved in a "data" folder
+gss <- read_csv(file = "../data/gss.csv")
+```
+
+You can look at the gss file by going to the "Environment" pane and clicking on the table icon next to the gss object, or by typing `View(gss)` into the console. 
+
+You can print out the top rows of the gss object by using `head`
+
+```{r}
+head(gss)
+# or bottom rows
+tail(gss)
+```
+
+We can print the dimensions of the gss object (number of rows and number of columns)
+
+```{r}
+# output of this is a vector of 2 numbers 
+# first number = number of rows
+# second number is the number of columns
+dim(gss)
+```
+
+# Important functions
+
+This section illustrates some important functions that make manipulating datasets like the gss dataset much easier. 
+
+## `select`
+
+We can select a column from a dataset. For example the code below selects the column with the respondents age:
+
+```{r}
+select(gss, age)
+select(gss, age, education)
+```
+
+## The pipe
+
+Instead of selecting the age column like above, we can make use of the pipe function. This is the %>% notation. It looks funny but it may help to read it as like saying "and then". On a more technical note, it takes the first part of code and *pipes* it into the first argument of the second part and so on. So the code below takes the gss dataset AND THEN selects the age column:
+
+```{r}
+gss %>% 
+  select(age)
+```
+
+Notice that the commands above don't save anything. Assign the age column to a new object called `gss_age`
+
+```{r}
+gss_age <- gss %>% select(age)
+gss_age
+```
+
+## `arrange`
+
+The `arrange` function sorts columns from lowest to highest value. So for example we can select the age column then arrange it from smallest to largest number. Note that this involves using the pipe twice (so taking gss AND THEN selecting age AND then arranging age).
+
+```{r}
+gss %>% 
+  select(age) %>% 
+  arrange(age)
+```
+
+Side note: you need not press enter after each pipe but it helps with readability of the code. 
+
+## `filter`
+
+To filter rows based on some criteria we use the `filter` function. e.g. filter to only include those aged 30 or less:
+
+```{r}
+gss %>% 
+  filter(age<=30)
+```
+
+Filter takes any logical arguments. If we want to filter by participants who identified as *Female*, we use `==` operator. 
+
+```{r}
+gss %>% 
+  filter(sex=="Female") %>%
+  select(sex, age)
+```
+
+## `mutate`
+
+We can add columns using the mutate function. For example we may want to add a new column called `age_plus_1` that adds one year to everyone's age:
+
+```{r}
+gss %>% 
+  select(age) %>% 
+  mutate(age_plus_1 = age+1)
+```
+
+## `summarize`
+
+The `summarize` function is used to give summaries of one or more columns of a dataset. For example, we can calculate the mean age of all respondents in the gss:
+
+```{r}
+gss %>% 
+  select(age) %>% 
+  summarize(mean_age = mean(age))
+
+gss %>% 
+  filter(sex=="Female") %>%
+  summarize(count_Female = n())
+```
+## In-class exercise  
+
+Using `filter`, `select`, and `summarize` commands, find out if the mean age is higher for *Male* or *Female* in our sample.
+
+# Review questions
+
+1. Create a new R Markdown file for these review questions
+2. Create a variable called "my_name" and assign a character string containing your name to it
+3. Find the mean age at first birth (age_at_first_birth) of respondents in the GSS.
+4. Create a new dataset that just contains GSS respondents who are less than 20 years old. 
+5. How many rows does the dataset in step 4 have?
+6. What is the largest case id in the dataset in step 4?
+
+
+

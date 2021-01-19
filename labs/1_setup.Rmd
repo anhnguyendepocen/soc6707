@@ -75,6 +75,7 @@ For a quick guide on codes for R Markdown check out this **[cheat sheet](https:/
 (5+8)*2
 ```
 
+
 ## How to knit a R Markdown file
 
 Above I was going on about 'knitting' the document. This means to compile it to output of a particular format that is more readable or more usual for a document. In our case we are compiling to a pdf. To knit this file, click the Knit button in the menu above. A pdf should pop up, showing a nicely formatted document. 
@@ -107,6 +108,13 @@ Values need not just be numbers:
 # the c() function allows you to create vectors of numbers (or characters)
 z <- c(3,4,3.2,5.1)
 z
+# pull out variable parts of z
+z[1]
+z[3]
+# length of z
+length(z)
+# the 5th element doesn't exist
+z[5]
 ```
 
 Character strings:
@@ -120,6 +128,13 @@ last_name <- "Alexander"
 **Functions** in R are commands that take arguments and do operations to variables/objects. For example, the `paste` function pastes two (or more) strings together:
 
 ```{r}
+z
+max(z)
+mean(z)
+```
+
+
+```{r}
 paste(first_name, last_name)
 paste(first_name, "June", last_name)
 ```
@@ -129,6 +144,14 @@ paste(first_name, "June", last_name)
 ## In-class Exercise 
 
 Using the codes you learned, write a code that outputs, "your name, program of study" and send the code in the chat during the tutorial. 
+
+```{r}
+name <- "Monica"
+program_of_study <- "done with exams for life"
+paste(name, program_of_study, sep = ", ")
+
+```
+
 
 ## Getting help
 
@@ -169,7 +192,8 @@ Throughout this course we will be using the tidyverse package a lot. You will ne
 - uncomment the code below and execute:
 
 ```{r}
-# install.packages(tidyverse)
+# install.packages("tidyverse")
+# install.packages("dplyr")
 ```
 
 Once tidyverse is installed, load it in using the library command:
@@ -193,7 +217,7 @@ We are going to read in the GSS csv file. Note that you will probably have to ch
 ```{r}
 # make sure the file name points to where you've saved the gss file
 # for example, I have it saved in a "data" folder
-gss <- read_csv(file = "../data/gss.csv")
+gss <- read_csv(file = "data/gss.csv")
 ```
 
 The gss object is a data frame and contains a row for each respondent and a column for each variable in the dataset. The gss object technically is what is called a **tibble** -- this is a weird word and originates from the fact that the guy that made the tidyverse package is from New Zealand and when people from NZ say "table" it sounds like "tibble". 
@@ -211,6 +235,9 @@ tail(gss)
 We can print the dimensions of the gss object (number of rows and number of columns)
 
 ```{r}
+# output of this is a vector of 2 numbers 
+# first number = number of rows
+# second number is the number of columns
 dim(gss)
 ```
 

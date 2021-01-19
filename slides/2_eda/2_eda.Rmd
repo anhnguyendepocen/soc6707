@@ -1,0 +1,857 @@
+---
+title: "SOC6707: Intermediate Data Analysis"
+author: "Monica Alexander"
+date: "Week 2: Exploratory Data Analysis and Data Visualization"
+output: 
+  beamer_presentation:
+    slide_level: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, size = '\tiny')
+```
+
+## Overview
+
+What we will cover today:
+
+- What is EDA and why do we do it?
+- Steps of EDA
+- Data visualization
+- Key types of graphs
+    + another summary measure: correlation coefficient
+- Doing EDA and data viz in R (intro to `ggplot`)
+
+(Exploratory Data Analysis = EDA)
+
+# Exploratory Data Analysis (EDA)
+
+## What is EDA and why do we do it?
+
+Before we even do any sort of statistical inference, we need to understand the main characteristics of our dataset. 
+
+- Helps to identify any potential issues or surprising things about our data
+- Helps to check / explore / refine research questions
+
+## What is EDA and why do we do it?
+
+EDA is all about asking: 
+
+- What types of variables do we have?
+- Do we have a complete dataset, or do we have missing data or observations?
+- If we have missing data, is it missing equally across observations of different types or concentrated in particular groups?
+- Are there any obvious outliers or strange data points?
+- What do the data 'look' like? 
+    + summary measures, measures of centrality, spread
+    + Visualizing the data through plots and tables
+    
+## Steps of EDA
+
+1. Become familiar with size of data set (number of observations and variables available)
+2. What kinds of variables are available
+3. For the variables that I'm interested in, are there any missing values or other issues?
+4. What does the distribution/frequency of observations look like for the variables I'm interested in? (summary measures, tables and graphs)
+
+## Example: TTC subway delays in 2019
+
+- Data on TTC subway delay times by station and day available from the Open Data Toronto website: https://open.toronto.ca/
+- Accessed through using the `opendatatoronto` R package: https://sharlagelfand.github.io/opendatatoronto/
+
+```{r, echo = FALSE}
+library(tidyverse)
+library(here)
+delay_2019 <- read_csv(here("data/ttc_delays_2019.csv"))
+```
+
+\includegraphics{../fig/ttc.jpg}
+
+
+## Get familiar with dataset
+
+\tiny
+```{r}
+delay_2019
+```
+
+## Get familiar with dataset
+
+Dimensions (number of rows x number of columns)
+
+\tiny
+
+```{r}
+dim(delay_2019)
+```
+
+Variable names
+
+\tiny
+
+```{r}
+colnames(delay_2019)
+```
+
+## The `summary` function is useful for a quick overview
+
+\tiny
+```{r}
+summary(delay_2019)
+```
+
+## Research question?
+
+- What are some good potential research questions with this dataset?
+
+## Sanity checks
+
+We need to check variables should be what they say they are. If they aren't, the natural next question is to what to do with issues (recode? remove?)
+
+E.g. check days of week make sense with the `unique` function
+
+\tiny
+
+```{r}
+delay_2019 %>% 
+  select(day) %>% 
+  unique()
+```
+
+## Sanity checks
+
+Check lines: oh no. some issues here. Some have obvious recodes, others, not so much. 
+\tiny
+```{r}
+delay_2019 %>% 
+  select(line) %>% 
+  unique() %>% 
+  pull() # turn into a vector for better display
+```
+## Data issues
+
+How bad is the mislabeling of lines? look at frequency of cases
+
+NOTE! New very important function: `group_by` 
+
+\tiny
+
+```{r}
+delay_2019 %>% 
+  group_by(line) %>% # group by line label
+  tally() %>% # count the number of occurrences
+  arrange(-n) # arrange in descending order
+```
+## Missing values
+
+\tiny
+
+```{r}
+delay_2019 %>% 
+  summarise_all(.funs = funs(sum(is.na(.))))
+```
+
+
+## Or use the `skimr` package
+
+\tiny 
+
+```{r, eval = FALSE}
+library(skimr) # install using install.packages("skimr")
+skim(delay_2019)
+```
+
+\normalsize
+(Show this in lecture)
+
+```{r, echo = FALSE}
+library(janitor)
+delay_2019 <- delay_2019 %>% distinct()
+delay_2019 <- delay_2019 %>% filter(line %in% c("BD", "YU", "SHP", "SRT")) 
+```
+
+
+## Summary statistics
+
+Most interested in delay minutes, which is the `min_delay` variable
+
+\tiny
+
+```{r}
+delay_2019 %>% 
+  summarize(n_obs = n(), 
+            mean_delay = mean(min_delay),
+            median_delay = median(min_delay),
+            range_delay = max(min_delay) - min(min_delay),
+            iqr_delay = IQR(min_delay))
+```
+
+## Summary statistics
+
+Probably more interesting to do these summaries by line (**stratify** by line); easy extension with the `group_by` function
+
+\tiny
+
+```{r}
+delay_2019 %>% 
+  group_by(line) %>% 
+  summarize(n_obs = n(), 
+            mean_delay = mean(min_delay),
+            median_delay = median(min_delay),
+            range_delay = max(min_delay) - min(min_delay),
+            iqr_delay = IQR(min_delay))
+```
+
+
+## Summaries
+
+Could also stratify by reason for delay
+
+\tiny
+
+```{r}
+delay_2019 %>% 
+  group_by(code_desc) %>% 
+  summarize(n_obs = n(), 
+            mean_delay = mean(min_delay),
+            median_delay = median(min_delay),
+            range_delay = max(min_delay) - min(min_delay),
+            iqr_delay = IQR(min_delay)) %>% 
+  arrange(-n_obs)
+```
+
+## Summaries
+
+Arrange by mean delay time
+
+\tiny
+
+```{r}
+delay_2019 %>% 
+  group_by(code_desc) %>% 
+  summarize(n_obs = n(), 
+            mean_delay = mean(min_delay),
+            median_delay = median(min_delay),
+            range_delay = max(min_delay) - min(min_delay),
+            iqr_delay = IQR(min_delay)) %>% 
+  arrange(-mean_delay) 
+```
+## EDA: summary so far
+
+- There's no one checklist of things to looks at, depends on your data and research question
+- Get familiar with your dataset
+- Check for missing values, and that existing values make sense
+- Summary statistics depend on your research question of interest
+    + stratifying (`group_by`) by important characteristics often useful 
+
+
+# Data visualization
+
+## Plot your data!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+- We started to compute some summary statistics above, and showed how summaries can be calculated by group and arranged in different ways to get a sense of differences across groups
+- However, graphing/plotting your data is usually the best way to visualize patterns, trends, outliers, issues and other surprising points
+- The most appropriate types of graph for your data depends on:
+    + the type of variable you are interested in (quantitative or qualitative/categorical)
+    + your research questions
+
+
+## Plot your data!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+- Before you start to do any statistical analysis, you should always plot your data
+- Data visualization is a key part of EDA and essential in understanding the assumptions and outcomes of your eventual statistical analysis
+
+# Important types of graphs
+
+## Important types of graphs
+
+- Histograms
+- Bar charts
+- Boxplots
+- Line plots
+- Scatter plots 
+
+
+## Example datasets used here
+
+1.  TTC subway delays (from above)
+2. Country-level indicators, 2009-2017
+    + Uploaded onto Quercus
+    + TFR = total fertility rate
+    + GDP = gross domestics product
+    + dataset also has life expectancy (females), child mortality, maternal mortality
+    
+    
+## Histograms
+
+Shows the distribution of a **quantitative** variable
+
+- Histograms show the frequency (count) of observations by value 
+- The range of values of a variables is divided into intervals ('bins') and then the number of observations in each bin is tabulated
+- A histogram shows the count of observations in each bin with a rectangle of height equal to the count
+- The x axis is the value bins, the y axis is the count/frequency (or proportion)
+
+## 
+
+```{r, echo = FALSE}
+country_ind <- read_csv("../../data/country_indicators.csv")
+country_ind %>% 
+  filter(year==2017) %>% 
+  ggplot(aes(life_expectancy)) + 
+  geom_histogram(binwidth = 2, fill = "firebrick", color = "white") + 
+  theme_bw(base_size = 14) + 
+  xlab("life expectancy") + 
+  labs(title = "Female life expectancy, 2017")
+```
+
+## 
+
+```{r, echo=FALSE}
+delay_2019 %>% 
+  filter(min_delay>0) %>% 
+  ggplot(aes(min_delay)) + 
+  geom_histogram(fill = "darkturquoise", color = "navy", binwidth = 10) +
+  #scale_x_log10() + 
+  theme_bw(base_size = 14) + 
+  xlab("delay (minutes)") + 
+  labs(title = "Delay times, TTC subway 2019")
+```
+
+## Making the histogram more informative
+
+```{r, echo=FALSE}
+ggplot(data = delay_2019) + 
+  geom_histogram(aes(x = min_delay, y = ..density.., fill = line), position = 'dodge', bins = 10) + scale_x_log10()+
+  theme_bw(base_size = 14) + 
+  xlab("delay (minutes)") + 
+  labs(title = "Delay times, TTC subway 2019",
+       subtitle = "by line")
+```
+
+## Bar charts
+
+Shows summary measures across values of a **categorical** (qualitative) variable
+
+- Illustrate the value of a particular outcome in a particular category
+- The 'value' can be counts, but could also be a summary measure (e.g. mean)
+- The value is again shown by a rectangle of height equal to the value
+- Bar carts can be plotted vertically or horizontally
+- In the vertical setting, the x axis is the categories and the y axis is the value of the quantitative variable
+
+##
+
+```{r, echo = FALSE}
+delay_2019 %>% 
+  filter(min_delay>0) %>% 
+  group_by(line) %>% 
+  count() %>% 
+  mutate(line = factor(line, levels = c("YU", "BD", "SRT", "SHP"),
+                       labels = c("YU", "BD", "SRT", "SHP"))) %>% 
+  ggplot(aes(x = line, y = n, fill = line)) + 
+  geom_col() + 
+  theme_bw(base_size = 14)+
+  theme(legend.position = 'none') +
+  ylab("count")+
+  ggtitle("Number of delays by line, 2019")
+```
+
+## Same but horizontal
+
+```{r, echo = FALSE}
+delay_2019 %>% 
+  filter(min_delay>0) %>% 
+  group_by(line) %>% 
+  count() %>% 
+  mutate(line = factor(line, levels = c("YU", "BD", "SRT", "SHP"),
+                       labels = c("YU", "BD", "SRT", "SHP"))) %>% 
+  ggplot(aes(x = line, y = n, fill = line)) + 
+  geom_col() + 
+  theme_bw(base_size = 14)+
+  theme(legend.position = 'none') +
+  ylab("count")+
+  ggtitle("Number of delays by line, 2019")+
+  coord_flip()
+```
+
+## Showing mean delay time
+
+```{r, echo = FALSE}
+delay_2019 %>% 
+  filter(min_delay>0) %>% 
+  group_by(line) %>% 
+ summarise(n = mean(min_delay)) %>% 
+  mutate(line = fct_reorder(as.factor(line), n)) %>% 
+  ggplot(aes(x = line, y = n, fill = line)) + 
+  geom_col() + 
+  theme_bw(base_size = 14)+
+  theme(legend.position = 'none') +
+  ylab("mean delay (mins)")+
+  ggtitle("Mean length of delay by line, 2019") + 
+  coord_flip()
+```
+
+## More complicated example
+
+```{r, echo = FALSE}
+delay_2019 %>% 
+  filter(min_delay>0) %>% 
+  group_by(line, station) %>% 
+  summarise(mean_delay = median(min_delay), n_obs = n()) %>% 
+  filter(n_obs>1) %>% 
+  arrange(line, -mean_delay) %>% 
+  slice(1:5) %>% 
+  ggplot(aes(station, mean_delay)) + geom_col() + coord_flip() + facet_wrap(~line, scales = "free_y")+
+  ggtitle("Top 5 station by median delay") + 
+  xlab("median delay (mins)")+
+  theme_bw(base_size = 14)
+```
+
+## A lego example
+
+\tiny
+```{r}
+lego <- tibble(color = c("green", "white", "pink", 
+                         "yellow", "blue", "light green", "orange"),
+               count = c(6,5,4,3,2,2,1))
+```
+
+```{r, echo = FALSE}
+lego <- lego %>% 
+  mutate(color = fct_reorder(color, -count))
+```
+
+\centering
+\includegraphics[width = 0.8\textwidth]{../fig/lego_bar.jpeg}
+
+##
+\tiny
+```{r, echo = TRUE, fig.height = 4, fig.width = 6}
+ggplot(lego, aes(color, count, fill = color)) + 
+  geom_bar(stat="identity") + 
+  scale_fill_manual(values = c("#70961c", "white", 
+                               "#ee5e4f", "#d5c47c", "#008db3", "#a5d395", "#d35800")) + 
+  theme(legend.position = 'none',
+        panel.background = element_rect(fill = "#d7d3c9",
+                                colour = "#d7d3c9",
+                                size = 0.5, linetype = "solid")) +
+  ylab("number of blocks")+xlab("")
+```
+
+
+## Box plots
+
+Good for showing summaries of **quantitative** variables across different **categorical** groups. 
+
+
+- Visualizing quartiles (25/50/75 percentiles) of quantitative data
+- Boxes show the IQR and median
+- Whiskers show values outside IQR (in R/`ggplot`, default is 1.5*IQR)
+- Outliers may be shown with individual dots
+- In the vertical case, the x axis is the categories and the y axis is the quantitative variable
+
+## 
+
+```{r, echo = FALSE}
+country_ind %>% 
+  mutate(region = fct_reorder(region, -life_expectancy)) %>% 
+  ggplot(aes(x = region, y = life_expectancy, fill = region)) + 
+  geom_boxplot() +
+  scale_fill_viridis_d()+
+  theme_bw(base_size = 14)+
+  theme(legend.position = 'none', axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  xlab("")+
+  ylab("")+
+  ggtitle("Life expectancy (years) by region of the world")
+```
+
+## Could also do horizontal
+
+
+```{r, echo = FALSE}
+country_ind %>% 
+  mutate(region = fct_reorder(region, -life_expectancy)) %>% 
+  ggplot(aes(x = region, y = life_expectancy, fill = region)) + 
+  geom_boxplot() +
+  scale_fill_viridis_d()+
+  theme_bw(base_size = 14)+
+  theme(legend.position = 'none')+
+  xlab("")+ylab("")+
+  coord_flip()+
+  ggtitle("Life expectancy (years) by region of the world")
+```
+
+
+
+
+
+## Line plots
+
+Best used to describe values of a **quantitative** variable (on y axis) across sequential values of another **quantitative** variable on the x axis
+
+- Plots a series of values of a quantitative variable connected together by a line
+- Useful to visualize trends over time
+
+##
+
+```{r, echo = FALSE}
+country_ind %>%
+  filter(country %in% c("Canada", "United States of America")) %>% 
+  ggplot(aes(year, tfr, color = country)) + 
+  geom_line(lwd = 1.2) + 
+  geom_point(size = 2) + 
+  ggtitle("Total fertility rate, Canada and the US") + 
+  scale_x_continuous(breaks = 2009:2017) + theme_bw(base_size = 14)
+```
+
+
+## Scatter plots
+
+Shows relationship between two different **quantitative** variables
+
+- Uses dots to represent values for two different **quantitative** values
+- The position of each dot on the x and y axis indicates values for an individual data point
+- Extremely useful in visualizing the relationship between two quantitative variables
+
+##
+
+```{r, echo = FALSE}
+country_ind %>% 
+  filter(year == 2017) %>% 
+  ggplot(aes(tfr, life_expectancy)) + 
+  geom_point() + 
+  ggtitle("TFR versus life expectancy, 2017")+
+  theme_bw(base_size = 14)+ 
+  ylab("life expectancy (years)") + 
+  xlab("TFR (births per woman)")
+```
+
+##
+
+```{r, echo = FALSE}
+country_ind %>% 
+  filter(year == 2017) %>% 
+  ggplot(aes(tfr, life_expectancy, color = region)) + 
+  geom_point() + 
+  ggtitle("TFR versus life expectancy, 2017")+
+  theme_bw(base_size = 14)+ 
+  ylab("life expectancy (years)") + 
+  xlab("TFR (births per woman)") + 
+  scale_color_viridis_d()
+```
+
+## Aside: another summary measure
+
+Based on the previous graphs, evidence to suggest a relationship between TFR and life expectancy
+
+- as TFR goes up, life expectancy tends to go down
+- life expectancy is **negatively correlated** with TFR
+
+**Correlation** is the statistical measure of the relationship between two variables. **Pearson's correlation coefficient**, $r_{xy}$ summarizes this relationship into one number. For an observation sample of two random variables $x_1, x_2, \dots, x_n$ and $y_1, y_2, \dots, y_n$, 
+
+$$
+r_{xy} = \frac{\sum^n_{i=1}(x_i - \bar x)(y_i - \bar y)}{\sqrt{\sum^n_{i=1}(x_i - \bar x)^2}\sqrt{\sum^n_{i=1}(y_i - \bar y)^2}}
+$$
+
+## Correlation coefficients in R
+
+Easiest to use the function `cor`
+
+\footnotesize
+```{r}
+country_ind_2017 <- country_ind %>% filter(year==2017)
+country_ind_2017 %>% 
+  select(tfr, life_expectancy) %>% 
+  summarize(correlation = cor(tfr, life_expectancy))
+
+# alternative code
+# cor(country_ind_2017$tfr, country_ind_2017$life_expectancy) 
+```
+
+##
+
+```{r, echo = FALSE}
+country_ind %>% 
+  filter(year == 2017) %>% 
+  ggplot(aes(tfr, life_expectancy)) + 
+  geom_point() + 
+  ggtitle("TFR versus life expectancy, 2017")+
+  theme_bw(base_size = 14)+ 
+  ylab("life expectancy (years)") + 
+  xlab("TFR (births per woman)")+
+  geom_smooth(method = "lm")
+```
+
+## Plot your data!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+The correlation coefficient tells us in a single number that there is a negative relationship observed between TFR and life expectancy. So why bother plotting at all?
+
+## Anscombe's quartet
+
+```{r, echo = FALSE, fig.width=6, fig.height=3}
+datasets::anscombe %>% 
+  select(x1:x4) %>% 
+  pivot_longer(x1:x4) %>% 
+  mutate(name = as.numeric(str_remove(name, "x"))) %>% 
+  rename(dataset = name,
+         x = value) %>% 
+  group_by(dataset) %>% 
+  mutate(i = 1:n()) %>% 
+  left_join(datasets::anscombe %>% 
+  select(y1:y4) %>% 
+  pivot_longer(y1:y4) %>% 
+  mutate(name = as.numeric(str_remove(name, "y"))) %>% 
+  rename(dataset = name,
+         y = value) %>% 
+  group_by(dataset) %>% 
+  mutate(i = 1:n())) %>% 
+  ggplot(aes(x, y)) + geom_point() + facet_wrap(~dataset) + 
+  geom_abline(intercept = 3, slope = 0.5, color = "royalblue", lwd = 1.2)+
+  theme_bw(base_size = 14)
+```
+
+## 
+
+\includegraphics{../fig/dinos.png}
+\tiny
+Source: https://www.autodeskresearch.com/publications/samestats
+
+## Where are the pie charts?
+
+Don't use pie charts!, Humans are inherently bad at judging angles, which is what you have to do with a pie chart. Use a bar chart instead. 
+
+```{r, echo = FALSE}
+p1 <- delay_2019 %>% 
+  group_by(line) %>% 
+  tally() %>% 
+  mutate(prop = n/sum(n)) %>% 
+  mutate(ypos = cumsum(prop) - 0.5*prop) %>% 
+  #mutate(line = fct_reorder(line, prop)) %>% 
+  ggplot(aes(x = "", y = prop, fill = line)) + geom_bar(stat = "identity", width = 1) +
+  coord_polar("y")+
+  theme_void()
+p2 <- delay_2019 %>% 
+  group_by(line) %>% 
+  tally() %>% 
+  mutate(prop = n/sum(n)) %>% 
+  mutate(ypos = cumsum(prop) - 0.5*prop) %>% 
+  mutate(line = fct_reorder(line, -prop)) %>% 
+  ggplot(aes(x = line, y = prop, fill = line)) + geom_bar(stat = 'identity')+
+  theme_bw()
+
+library(patchwork)
+p1+p2
+```
+
+
+# Introduction to `ggplot`
+
+## `ggplot`
+
+- `ggplot` is the graphing package that goes with the `tidyverse` in R
+- Very powerful to make a wide range of graphics
+- Every graph so far this lecture was done in `ggplot`
+- `ggplot` code works in layers, with each layer adding complexity
+    + start with defining dataset and different variables
+    + add on type of plot
+    + scales
+    + layout (facets)
+    + themes, fonts, sizes...
+
+More practice in lab, but here's a starting example
+
+## Reproducing the TFR verus life expectancy chart, colored by region
+
+```{r, echo = FALSE}
+country_ind %>% 
+  filter(year == 2017) %>% 
+  ggplot(aes(tfr, life_expectancy, color = region)) + 
+  geom_point() + 
+  ggtitle("TFR versus life expectancy, 2017")+
+  theme_bw(base_size = 14)+ 
+  ylab("life expectancy (years)") + 
+  xlab("TFR (births per woman)") + 
+  scale_color_viridis_d()
+```
+
+## Data
+
+\tiny
+
+```{r}
+# read in the data
+country_ind <- read_csv("../../data/country_indicators.csv")
+country_ind
+```
+```{r}
+# filter to just be 2017
+country_ind_2017 <- country_ind %>% filter(year==2017)
+```
+
+
+## A blank canvas
+`aes` stands for aesthetic and tells ggplot the main characteristics of your plot (x, y, and if the color or fill vary by group)
+
+\tiny
+```{r, fig.width=4, fig.height = 2.2}
+plot1 <- ggplot(data = country_ind_2017, aes(x = tfr, y = life_expectancy))
+
+#print
+plot1
+```
+
+## Add the points
+Add layers with ggplot using the `+`
+\tiny
+```{r, fig.width=4, fig.height = 2.2}
+plot1 <- ggplot(data = country_ind_2017, aes(x = tfr, y = life_expectancy)) + 
+  geom_point()
+
+plot1
+```
+
+## Tidy up labels
+
+\tiny
+```{r, fig.width=4, fig.height = 2.2}
+plot1 <- ggplot(data = country_ind_2017, aes(x = tfr, y = life_expectancy)) + 
+  geom_point()+
+  xlab("TFR (births per woman)")+
+  ylab("life expectancy (years)")
+  
+plot1
+```
+
+## Title
+
+\tiny
+```{r, fig.width=4, fig.height = 2.2}
+plot1 <- ggplot(data = country_ind_2017, aes(x = tfr, y = life_expectancy)) + 
+  geom_point()+
+  xlab("TFR (births per woman)")+
+  ylab("life expectancy (years)")+
+  ggtitle("TFR versus life expectancy, 2017")
+  
+plot1
+```
+
+## Change color of points
+to see all colors, type `colors()`
+
+\tiny
+```{r, fig.width=4, fig.height = 2.2}
+plot1 <- ggplot(data = country_ind_2017, aes(x = tfr, y = life_expectancy)) + 
+  geom_point(color = "red")+
+  xlab("TFR (births per woman)")+
+  ylab("life expectancy (years)")+
+  ggtitle("TFR versus life expectancy, 2017")
+  
+plot1
+```
+
+
+## Coloring by group 
+
+This goes in the `aes()` because it **depends on the data**
+\tiny
+```{r, eval = FALSE}
+plot1 <- ggplot(data = country_ind_2017, aes(x = tfr, y = life_expectancy, color = region)) + 
+  geom_point()+
+  xlab("TFR (births per woman)")+
+  ylab("life expectancy (years)")+
+  ggtitle("TFR versus life expectancy, 2017")
+  
+plot1
+```
+
+## 
+\tiny
+```{r, echo = FALSE}
+plot1 <- ggplot(data = country_ind_2017, aes(x = tfr, y = life_expectancy, color = region)) + 
+  geom_point()+
+  xlab("TFR (births per woman)")+
+  ylab("life expectancy (years)")+
+  ggtitle("TFR versus life expectancy, 2017")
+  
+plot1
+```
+
+
+## Change theme (optional) and size of points
+\tiny
+```{r, eval = FALSE}
+plot1 <- ggplot(data = country_ind_2017, aes(x = tfr, y = life_expectancy, color = region)) + 
+  geom_point(size =2)+
+  xlab("TFR (births per woman)")+
+  ylab("life expectancy (years)")+
+  ggtitle("TFR versus life expectancy, 2017")+
+  theme_bw(base_size = 14)
+  
+plot1
+```
+
+## 
+\tiny
+```{r, echo = FALSE}
+plot1 <- ggplot(data = country_ind_2017, aes(x = tfr, y = life_expectancy, color = region)) + 
+  geom_point(size =2)+
+  xlab("TFR (births per woman)")+
+  ylab("life expectancy (years)")+
+  ggtitle("TFR versus life expectancy, 2017")+
+  theme_bw(base_size = 14)
+  
+plot1
+```
+
+## Change color scheme
+`viridis` and `brewer` both good options
+\tiny
+```{r, eval = FALSE}
+plot1 <- ggplot(data = country_ind_2017, aes(x = tfr, y = life_expectancy, color = region)) + 
+  geom_point(size =2)+
+  xlab("TFR (births per woman)")+
+  ylab("life expectancy (years)")+
+  ggtitle("TFR versus life expectancy, 2017")+
+  theme_bw(base_size = 14)+
+  scale_color_viridis_d()
+  
+plot1
+```
+
+## 
+\tiny
+```{r, echo = FALSE}
+plot1 <- ggplot(data = country_ind_2017, aes(x = tfr, y = life_expectancy, color = region)) + 
+  geom_point(size =2)+
+  xlab("TFR (births per woman)")+
+  ylab("life expectancy (years)")+
+  ggtitle("TFR versus life expectancy, 2017")+
+  theme_bw(base_size = 14)+
+  scale_color_viridis_d()
+  
+plot1
+```
+
+
+## Summary
+
+- Ask well-defined and well-scoped research questions that can be answered based on the data you have
+- EDA and data visualization is often just as informative and important as statistical analysis
+- It is essential to understand the structure of your data, missing-ness, any outliers/issues, and the raw patterns in your data before deciding on your statistical analysis
+- Plot, plot, plot
+- Practice, practice, practice
+
+## Summary
+
+Plots:
+
+
+- Bar charts for categorical/qualitative variables 
+- Histograms, boxplots for one quantitative variable (potentially across multiple categories)
+- Line plots and scatter plots for two quantitative variables (line plot when one is sequential)
+
+## Lab
+
+
+- Finishing off last week's lab
+- Practice with `ggplot` and how to graph important types of plots in R.
+
+
+
