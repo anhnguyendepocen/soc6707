@@ -1,0 +1,193 @@
+---
+title: "SOC6707 Intermediate Data Analysis, Winter 2021"
+author: "Assignment 1"
+date: "Due date: 5 February, 5pm"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(include = FALSE)
+```
+
+# Details
+
+There are **100 points** in total. 
+
+You will need to submit both your answers to the questions and accompanying R code. You should submit:
+
+- your R Markdown file; and
+- the knitted PDF resulting from your R Markdown file. 
+
+Please submit both files via Quercus. 
+
+Remember to:
+
+- Label the answers to each question 
+- Label any graphs clearly with suitable axis labels and titles
+- Comment your code so that it is easy to understand
+
+\newpage 
+
+# Question 1 (30 points)
+
+This question relates to the GSS dataset. We will be looking at how age at the time of first birth varies by education and current age. Note there are a few different education variables in the GSS dataset but for this question, we will be focusing on the binary `has_bachelor_or_higher` variable. 
+
+## a)
+
+Report the following descriptive statistics:
+
+i) What proportion of respondents have a non-missing observation for their age at the time of the birth of their first child?
+ii) What proportion of respondents have a non-missing observation for their highest level of education? 
+iii) For those respondents who have a non-missing education value:
+
+- What is the number of respondents by education group (at least a Bachelor's degree, less than a Bachelor's degree) that have a non-missing observation for age at first birth?
+- What is the proportion of respondents by education group (at least a Bachelor's degree, less than a Bachelor's degree) that have a non-missing observation for age at first birth?
+
+Comment briefly on your calculations. 
+```{r}
+library(tidyverse)
+library(here)
+gss <- read_csv(here("data/gss.csv"))
+
+n_gss <- nrow(gss)
+
+# number fb in total
+gss %>% 
+  filter(!is.na(age_at_first_birth)) %>% 
+  nrow()
+
+(gss %>% 
+  filter(!is.na(age_at_first_birth)) %>% 
+  nrow())/n_gss
+
+# number with education 
+gss %>% 
+  filter(!is.na(has_bachelor_or_higher)) %>% 
+  nrow()
+
+(gss %>% 
+  filter(!is.na(has_bachelor_or_higher)) %>% 
+  nrow())/n_gss
+
+# prop of first birth by education
+gss %>% 
+  filter(!is.na(has_bachelor_or_higher)) %>% 
+  group_by(has_bachelor_or_higher) %>% 
+  summarise(n = n(), n_fb = sum(!is.na(age_at_first_birth)), prop_fb = n_fb/n)
+```
+
+
+## b)
+
+For parts b) and c), we will be looking at the subset of respondents who have an education level reported, so you can filter out those respondents who have missing values of education. 
+
+Plot histograms of age at first birth by education level (at least a Bachelor's degree, less than a Bachelor's degree), with both histograms shown on the same chart but colored in different colors. Use `geom_histogram(position = "dodge")` so that the histograms are plotted next to each other. Interpret your chart. 
+
+```{r}
+gss %>% 
+  filter(!is.na(has_bachelor_or_higher)) %>% 
+  ggplot(aes(age_at_first_birth, fill = has_bachelor_or_higher)) + 
+  geom_histogram(position = "dodge") 
+```
+
+## c) 
+
+i) Calculate the correlation between age and age at first birth. Interpret your finding. 
+ii) Create a variable called `age_group` which groups the continuous `age` variable into 5-year age groups (hint: there is code to do this in Lab 2b).
+iii) Calculate the mean age of first birth by age group and education level (`has_bachelor_or_higher`)
+iv) Create a line chart of the results from part iii), plotting mean age of first birth (y axis) versus age group (x axis), with a separate line (and different color) for education level. Comment on your chart. Does the pattern over age agree with your findings from part i)? Why or why not?
+
+```{r}
+
+gss %>% 
+  select(age, age_at_first_birth) %>% 
+  drop_na() %>% 
+  summarise(cor(age,age_at_first_birth))
+
+gss %>% 
+  group_by(age_group, has_bachelor_or_higher) %>% 
+  filter(!is.na(has_bachelor_or_higher)) %>% 
+  summarize(mean_age_fb = mean(age_at_first_birth, na.rm = TRUE)) %>% 
+  filter(age_group > 15) %>% 
+  ggplot(aes(age_group, mean_age_fb, color = has_bachelor_or_higher))  + 
+  geom_line() +
+  geom_point()
+```
+
+
+# Question 2 (20 points)
+
+This question relates to the country indicators dataset. 
+
+Choose two different countries and describe, with the aid of at least two graphs, the country's fertility rate (TFR) and child mortality rate, including the levels, trends over time, and the relationship between the two quantities. Note that the two variables are
+
+- `tfr` = total fertility rate, which is the average number births per woman in that particular country and year
+- `child_mort` = under-five child mortality rate, which is the number of deaths to children aged 5 or less per 1,000 live births. 
+
+
+```{r}
+country_ind <- read_csv(here("data/country_indicators.csv"))
+
+country_ind %>% 
+  group_by(region) %>% 
+  summarise(cor(tfr, maternal_mort))
+
+country_ind %>% 
+  filter(region %in% c("Developed regions", "South-eastern Asia"), year==2017) %>% 
+  ggplot(aes(tfr, child_mort, label = country)) + geom_text() + facet_wrap(~region, scales = "free")
+
+country_ind %>% 
+  filter(country %in% c("Canada", "China")) %>% 
+  group_by(country) %>% 
+  summarise(cor(tfr, child_mort))
+
+country_ind %>% 
+  filter(region %in% c("Developed regions", "South-eastern Asia")) %>% 
+  ggplot(aes(year, child_mort, color = country)) + geom_line() + facet_wrap(~region, scales = "free") + 
+  theme(legend.position = 'none')
+
+country_ind %>% 
+  filter(region %in% c("Developed regions", "South-eastern Asia")) %>% 
+  ggplot(aes(year, tfr, color = country)) + geom_line() + facet_wrap(~region, scales = "free") + 
+  theme(legend.position = 'none')
+
+country_ind %>% 
+  filter(region %in% c("Developed regions", "South-eastern Asia"), year==2017|year==2009) %>% 
+  ggplot(aes(tfr, fill = factor(year))) + geom_boxplot() + facet_wrap(~region, scales = "free") + 
+  theme(legend.position = 'none')
+```
+
+# Question 3 (50 points)
+
+This question relates to the Airbnb dataset. This contains variables describing Airbnb listings in Toronto as of 7 December 2019. 
+
+## a) 
+
+Create a histogram of price by room type, with all histograms shown on the same chart but colored in different colors. Interpret the graph descriptively.
+
+Note: for readability, I suggest:
+
+- changing the y-axis scale to be density, not frequency; and using `position = dodge` so that the bars are shown next to each other (e.g. `geom_histogram(aes(y = ..density..), position = 'dodge')`)
+- changing the x-axis so it displays on the log scale, i.e. `scale_x_log10()`
+
+## b) 
+
+Create a boxplot of price by whether or not the host is a superhost. Interpret the graph descriptively. 
+
+## c) 
+
+Calculate the correlation of price and overall rating (`review_scores_rating`) separately by room type. Interpret your results. 
+
+## d) 
+
+i) Run a simple linear regression of price versus overall rating. Interpret the coefficient and significance on `review_scores_rating`.
+ii) Run a simple linear regression of log(price) versus log(overall rating). Interpret the coefficient and significance of `log(review_scores_rating)`.
+
+## e)
+
+Run a multiple linear regression of log(price) with covariates `room_type`, `log(review_scores_rating)` and `host_is_superhost`. 
+Interpret the coefficients and significance 
+
+## f)
+
+Compute a correlation coefficient between the model residuals from e) and `log(review_scores_rating)`. Interpret the results.
