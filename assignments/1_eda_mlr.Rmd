@@ -191,3 +191,15 @@ Interpret the coefficients and significance
 ## f)
 
 Compute a correlation coefficient between the model residuals from e) and `log(review_scores_rating)`. Interpret the results.
+
+
+# Research project
+
+Please describe 
+
+- your research question(s) of interest, and why they are of interest
+- any hypotheses you may have
+- the dataset you plan to use
+- your main dependent variable of interest
+- your main independent variables of interest
+

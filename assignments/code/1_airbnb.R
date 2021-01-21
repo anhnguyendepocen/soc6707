@@ -9,6 +9,8 @@ d <- d %>%
   filter(!is.na(room_type)) %>% 
   filter(!is.na(host_is_superhost))
 
+write_csv(d, "data/airbnb.csv")
+
 summary(lm(price ~ room_type, data = d))
 summary(lm(log(price) ~ room_type, data = d))
 
