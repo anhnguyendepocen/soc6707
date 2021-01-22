@@ -5,6 +5,7 @@ date: "Week 2: Exploratory Data Analysis and Data Visualization"
 output: 
   beamer_presentation:
     slide_level: 2
+    latex_engine: xelatex
 ---
 
 ```{r setup, include=FALSE}
@@ -150,17 +151,17 @@ delay_2019 %>%
 ```
 
 
-## Or use the `skimr` package
+<!-- ## Or use the `skimr` package -->
 
-\tiny 
+<!-- \tiny  -->
 
-```{r, eval = FALSE}
-library(skimr) # install using install.packages("skimr")
-skim(delay_2019)
-```
+<!-- ```{r, eval = FALSE} -->
+<!-- library(skimr) # install using install.packages("skimr") -->
+<!-- skim(delay_2019) -->
+<!-- ``` -->
 
-\normalsize
-(Show this in lecture)
+<!-- \normalsize -->
+<!-- (Show this in lecture) -->
 
 ```{r, echo = FALSE}
 library(janitor)
@@ -404,36 +405,36 @@ delay_2019 %>%
   theme_bw(base_size = 14)
 ```
 
-## A lego example
+<!-- ## A lego example -->
 
-\tiny
-```{r}
-lego <- tibble(color = c("green", "white", "pink", 
-                         "yellow", "blue", "light green", "orange"),
-               count = c(6,5,4,3,2,2,1))
-```
+<!-- \tiny -->
+<!-- ```{r} -->
+<!-- lego <- tibble(color = c("green", "white", "pink",  -->
+<!--                          "yellow", "blue", "light green", "orange"), -->
+<!--                count = c(6,5,4,3,2,2,1)) -->
+<!-- ``` -->
 
-```{r, echo = FALSE}
-lego <- lego %>% 
-  mutate(color = fct_reorder(color, -count))
-```
+<!-- ```{r, echo = FALSE} -->
+<!-- lego <- lego %>%  -->
+<!--   mutate(color = fct_reorder(color, -count)) -->
+<!-- ``` -->
 
-\centering
-\includegraphics[width = 0.8\textwidth]{../fig/lego_bar.jpeg}
+<!-- \centering -->
+<!-- \includegraphics[width = 0.8\textwidth]{../fig/lego_bar.jpeg} -->
 
-##
-\tiny
-```{r, echo = TRUE, fig.height = 4, fig.width = 6}
-ggplot(lego, aes(color, count, fill = color)) + 
-  geom_bar(stat="identity") + 
-  scale_fill_manual(values = c("#70961c", "white", 
-                               "#ee5e4f", "#d5c47c", "#008db3", "#a5d395", "#d35800")) + 
-  theme(legend.position = 'none',
-        panel.background = element_rect(fill = "#d7d3c9",
-                                colour = "#d7d3c9",
-                                size = 0.5, linetype = "solid")) +
-  ylab("number of blocks")+xlab("")
-```
+<!-- ## -->
+<!-- \tiny -->
+<!-- ```{r, echo = TRUE, fig.height = 4, fig.width = 6} -->
+<!-- ggplot(lego, aes(color, count, fill = color)) +  -->
+<!--   geom_bar(stat="identity") +  -->
+<!--   scale_fill_manual(values = c("#70961c", "white",  -->
+<!--                                "#ee5e4f", "#d5c47c", "#008db3", "#a5d395", "#d35800")) +  -->
+<!--   theme(legend.position = 'none', -->
+<!--         panel.background = element_rect(fill = "#d7d3c9", -->
+<!--                                 colour = "#d7d3c9", -->
+<!--                                 size = 0.5, linetype = "solid")) + -->
+<!--   ylab("number of blocks")+xlab("") -->
+<!-- ``` -->
 
 
 ## Box plots
@@ -832,7 +833,6 @@ plot1
 
 ## Summary
 
-- Ask well-defined and well-scoped research questions that can be answered based on the data you have
 - EDA and data visualization is often just as informative and important as statistical analysis
 - It is essential to understand the structure of your data, missing-ness, any outliers/issues, and the raw patterns in your data before deciding on your statistical analysis
 - Plot, plot, plot
@@ -842,7 +842,6 @@ plot1
 
 Plots:
 
-
 - Bar charts for categorical/qualitative variables 
 - Histograms, boxplots for one quantitative variable (potentially across multiple categories)
 - Line plots and scatter plots for two quantitative variables (line plot when one is sequential)
@@ -850,8 +849,15 @@ Plots:
 ## Lab
 
 
-- Finishing off last week's lab
+- Quick overview of the end of last week's lab (see video)
 - Practice with `ggplot` and how to graph important types of plots in R.
 
 
+## Data ideas
 
+- IPUMS: https://ipums.org/
+- ICPSR: https://www.icpsr.umich.edu/web/pages/ICPSR/thematic-collections.html
+- CHASS SDA: https://datacentre.chass.utoronto.ca/
+- Toronto Open Data Portal: https://open.toronto.ca/ or use `opendatatoronto` R package (ask for code)
+- UN WPP: https://population.un.org/wpp/
+- NBER: https://www.nber.org/research/data?page=1&perPage=50
