@@ -1,0 +1,914 @@
+---
+title: "SOC6707 Intermediate Data Analysis"
+author: "Monica Alexander"
+date: "Week 3: Linear Regression"
+output: 
+  beamer_presentation:
+    slide_level: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, size = '\tiny')
+```
+
+## Overview
+
+- Random variables, probability essentials
+- Conditional expectation function
+- Simple linear regression
+- Multiple linear regression
+- Estimation
+- Inference
+
+It is assumed that this is review. 
+
+## Random variables
+
+A **random variable** is a variable whose values depend on the outcomes of a random process. 
+
+## Coin toss example
+
+Imagine tossing a coin 4 times. Say we are interested in the number of heads that turns up. The observed outcomes are:
+
+```{r, echo = FALSE}
+library(tidyverse)
+set.seed(999)
+tosses <- purrr::rbernoulli(4)
+ifelse(tosses, "H", "T")
+```
+
+So the number of heads is 2. But we can toss it another 4 times. The second set of observed outcomes are
+
+```{r, echo = FALSE}
+set.seed(176)
+tosses <- purrr::rbernoulli(4)
+ifelse(tosses, "H", "T")
+```
+
+So the number of heads is 1. 
+
+The number of heads is a **random variable** that depends on the random process of flipping a coin.
+
+## Heights example
+
+Say we are interested in heights of people in Canada. We take a random sample of 6 people. Their heights are (in cm)
+
+```{r, echo = FALSE}
+set.seed(6)
+round(rnorm(6, mean = 175, sd = 8), 2)
+```
+
+We sample another 6 people. Their heights are 
+
+```{r, echo = FALSE}
+round(rnorm(6, mean = 175, sd = 8), 2)
+```
+
+So height is a random variable that depends on the random process of sampling the population
+
+## Notation
+
+- Call our random variable of interest $X$
+    + in coin example $X =$ number of heads
+    + in heights example $X=$ height
+- After we observe values we denote these with lower case $x$
+    + coin example $x = 2$ and $x = 1$ 
+    + heights example $\{x_1 = 177.16, x_2 = 169.96, x_3 = 181.95, x_4 = 188.82, x_5 = 175.19, x_6 = 177.94\}$ etc
+
+<!-- ## Probability -->
+
+<!-- - Based on our sample or other random process (as in the coin flipping), we would like to make valid statements about the underlying population or quantity of interest -->
+<!--     + In the coin tossing example, we are interested in the likelihood of a head turning up for that coin -->
+<!-- - Probability is one tool that will help us do that -->
+<!-- - Probability is all about talking about the chance of something (an event happening or observing a particular thing) -->
+<!-- - There is uncertainty associated with the event or observation, and probability helps us to quantify this -->
+<!-- - **Probability function**: a rule that assigns a value $P(A_i)$ to each event such that  -->
+<!--     + $P(A_i)$ is greater than or equal to zero ($P(A_i) \geq 0$) -->
+<!--     + $P(A_i)$ is less that or equal to one ($P(A_i) \leq 1$) -->
+<!--     + the sum of all $P(A_i)$ is equal to one for a finite sample space. ($\sum_i^N P(A_i) =1$) -->
+    
+# Probability distributions
+
+## Back to coin flipping example
+
+- The process of tossing a coin four times qualifies as an experiment
+- We can observe the outcome of each toss, and the outcome is uncertain. 
+- Our random variable of interest was the number of heads
+
+First, let’s look at possibilities. On the first toss, we could observe an outcome of heads (H) or tails (T). On each of the remaining three tosses, we could observe an H or a T. Thus, the possibilities for four tosses can be enumerated as follows:
+
+- HHHH, HHHT, HHTH, HHTT, HTHH, HTHT, HTTH, HTTT, THHH, THHT, THTH, THTT, TTHH, TTHT, TTTH, and TTTT. 
+
+We can see that there are 16 different possible outcomes when listed as simple events. 
+
+## Flipping a coin
+
+We can enumerate these possible outcomes in a table with the associated probability and observed number of heads
+
+\footnotesize
+
+\begin{table}[]
+\begin{tabular}{|l|r|r|}
+\hline
+event & probability & number of heads \\ \hline
+HHHH  & 0.0625      & 4               \\ \hline
+HHHT  & 0.0625      & 3               \\ \hline
+HHTH  & 0.0625      & 3               \\ \hline
+HHTT  & 0.0625      & 2               \\ \hline
+HTHH  & 0.0625      & 3               \\ \hline
+HTHT  & 0.0625      & 2               \\ \hline
+HTTH  & 0.0625      & 2               \\ \hline
+HTTT  & 0.0625      & 1               \\ \hline
+THHH  & 0.0625      & 3               \\ \hline
+THHT  & 0.0625      & 2               \\ \hline
+THTH  & 0.0625      & 2               \\ \hline
+THTT  & 0.0625      & 1               \\ \hline
+TTHH  & 0.0625      & 2               \\ \hline
+TTHT  & 0.0625      & 1               \\ \hline
+TTTH  & 0.0625      & 1               \\ \hline
+TTTT  & 0.0625      & 0               \\ \hline
+\end{tabular}
+\end{table}
+
+
+## Probability distribution for the number of heads
+
+Given our RV of interest is the number of heads and that all events are mutually exclusive, we can summarize the table as
+
+\begin{table}[]
+\begin{tabular}{|r|r|}
+\hline
+\multicolumn{1}{|l|}{Number of heads (X)} & \multicolumn{1}{l|}{P(X)} \\ \hline
+4                                         & 1/16                      \\ \hline
+3                                         & 4/16                      \\ \hline
+2                                         & 6/16                      \\ \hline
+1                                         & 4/16                      \\ \hline
+0                                         & 1/16                      \\ \hline
+\end{tabular}
+\end{table}
+
+We have a **probability distribution** for the number of heads. That is, a rule or function that associates the probability of observing that particular value with each value of a random
+variable. The probability distribution for a **discrete** RV (like # heads) is called a **probability mass function**
+
+## The expected value of a random variable
+
+For a discrete random variable, $X$, with a known probability distribution $P(X_i)$ and where $X_i$ is the $i$th outcome in the set of $k$ simple events:
+
+\footnotesize
+$$
+E(X)=X_{1} \times P\left(X_{1}\right)+X_{2} \times P\left(X_{2}\right)+\ldots+X_{k} \times P\left(X_{k}\right)=\sum_{i=1}^{k} X_{i} \times P\left(X_{i}\right)=\mu
+$$
+
+\normalsize
+The expected value is a weighted mean of all the possible values of the RV, weighted by their probabilities. It is given the symbol $\mu$. 
+
+Calculate the expected value for the number of heads in four coin flips. 
+
+## The variance of a random variable
+
+The definition of expected value to derive the variance, given the probability distribution 
+
+$$
+\begin{aligned}
+\sigma^{2} &=E\left[(X-\mu)^{2}\right]\\
+&=\left[X_{1}-E(X)\right]^{2} \times P\left(X_{1}\right)+\ldots+\left[X_{k}-E(X)\right]^{2} \times P\left(X_{k}\right) \\
+&=\sum_{i=1}^{k}\left[X_{i}-E(X)\right]^{2} \times P\left(X_{i}\right)
+\end{aligned}
+$$
+
+
+Calculate the variance for the number of heads in four coin flips. 
+
+## Summary
+
+- If we know the probability distribution of a discrete random variable, we know the mean and variance of the random variable, and hence, the standard deviation of the random variable. 
+- Thus, we can make predictions about where the values should center and how spread out they should be. 
+- If the random variable X is a continuous variable, then the idea is the same, but the sums $\sum$ need to be replaced with integrals $\int$ and we would need some calculus. 
+
+## Probabilities as areas
+
+```{r, echo = FALSE}
+ggplot(tibble(heads = 0:4, probability = c(1/16, 4/16, 6/16, 4/16, 1/16)), aes(x = heads, y = probability))+geom_bar(stat = "identity")
+```
+
+## Probabilities as areas
+
+- To calculate probabilities, can sum up the area of the rectangles
+- E.g. $P(X\geq3)$ would be the sum of the right two rectangles
+- What is $P(1 \leq X \leq3)$?
+- What is $P(1 \leq X <3)$?
+
+## Continuous random variables and probability distributions
+
+What if our variable is continuous?
+
+- Can think about in the same way (defining probability distributions, expected values, etc) 
+- Instead of having a table of values making up the probability distribution (or pmf), we have a mathematically defined function 
+- A probability distribution for a continuous RV is called a **probability density function**
+
+## A continuous probability distribution is just a histogram with infinitely small bins
+
+```{r, echo = FALSE}
+set.seed(76)
+heights <- tibble(height = rnorm(18000, mean = 170, sd = 8))
+heights %>% 
+  ggplot(aes(height)) + 
+  geom_histogram(binwidth = 5, color = "firebrick4", fill = "steelblue4")+
+  ggtitle("Adult heights")
+```
+
+##
+
+```{r, echo = FALSE}
+heights %>% 
+  ggplot(aes(height)) + 
+  geom_histogram(binwidth = 2, color = "firebrick4", fill = "steelblue4", aes(y = ..density..))+
+  ggtitle("Adult heights")
+```
+
+## Probability density function
+
+```{r, echo = FALSE}
+ggplot() +
+  stat_function(fun = dnorm,
+                geom = "area",
+                args = list(
+                  mean = 170,
+                  sd = 8
+                ),
+                fill = "steelblue4", color = "firebrick4") +
+  xlim(c(140,200))+
+  ylab("density") + 
+  ggtitle("Adult heights")
+```
+
+
+
+## What probability does this represent?
+
+```{r, echo = FALSE}
+ggplot() +
+  stat_function(
+    fun = dnorm,
+    geom = "area",
+    fill = "steelblue4",
+    color = "firebrick4",
+    alpha = .3,
+    args = list(
+                  mean = 170,
+                  sd = 8
+                )
+  ) +
+  stat_function(
+    fun = dnorm,
+    geom = "area",
+    fill = "steelblue4",
+    args = list(
+                  mean = 170,
+                  sd = 8
+                ),
+    xlim = c(185, 200)
+  ) +
+  ylab("Density")+
+  scale_x_continuous(limits = c(140, 200), breaks = seq(140, 200, by = 15))+
+    ggtitle("Adult heights")
+```
+
+# The normal distribution
+
+
+## The normal distribution
+
+- One of the most important continuous probability distributions 
+- Is described by the formula
+
+$$
+f(x)=\frac{1}{\sqrt{2 \pi \sigma^{2}}} e^{-\frac{1}{2} \frac{(x-\mu)^{2}}{\sigma^{2}}}
+$$
+
+- The shape is determined by two **parameters**, $\mu$ and $\sigma$
+- If we were to plot $f(x)$ as a function of $x$, we would obtain a normal distribution that would be centered at whatever value of $\mu$ we specified, and it would have a standard deviation equal to $\sigma$. 
+
+##
+
+```{r, echo = FALSE}
+ggplot() +
+  stat_function(
+    fun = dnorm,
+    geom = "area",
+    aes(fill = "mu = 170, sd = 8"),
+    color = "black",
+    alpha = .3,
+    args = list(
+                  mean = 170,
+                  sd = 8
+                ))+
+  stat_function(
+    fun = dnorm,
+    geom = "area",
+    aes(fill = "mu = 170, sd = 4"),
+    color = "black",
+    alpha = .2,
+    args = list(
+                  mean = 170,
+                  sd = 4
+                ))+
+    stat_function(
+    fun = dnorm,
+    geom = "area",
+    aes(fill = "mu = 185, sd = 4"),
+    color = "black",
+    alpha = .2,
+    args = list(
+                  mean = 185,
+                  sd = 4
+                ))+
+  scale_x_continuous(limits = c(140, 210), breaks = seq(140, 200, by = 15))+
+  scale_fill_brewer(name="", palette = "Set1")
+```
+
+## The standard normal distribution
+
+A special case of the normal distribution with $\mu = 0$ and $\sigma = 1$.
+
+```{r, echo = FALSE, fig.height = 5}
+ggplot() +
+  stat_function(fun = dnorm,
+                geom = "area",
+                args = list(
+                  mean = 0,
+                  sd = 1
+                ),
+                fill = NA, color = "firebrick4", alpha = 0.4, lwd = 1.2) +
+  scale_x_continuous(limits = c(-4,4), breaks = -4:4)+
+  ylab("density") 
+```
+
+## The standard normal distribution
+
+- ~68% of area within 1 standard deviation
+
+
+```{r, echo = FALSE, fig.height = 5}
+ggplot() +
+  stat_function(fun = dnorm,
+                geom = "area",
+                args = list(
+                  mean = 0,
+                  sd = 1
+                ),
+                fill = NA, color = "firebrick4", alpha = 0.4, lwd = 1.2) +
+  scale_x_continuous(limits = c(-4,4), breaks = -4:4)+
+  ylab("density") +
+  stat_function(
+    fun = dnorm,
+    geom = "area",
+    fill = "steelblue4",
+    alpha = 0.5,
+    args = list(
+                  mean = 0,
+                  sd = 1
+                ),
+    xlim = c(-1, 1)
+  )
+```
+
+
+## The standard normal distribution
+
+- ~95% of the area within 2 standard deviations
+
+```{r, echo = FALSE, fig.height = 5}
+ggplot() +
+  stat_function(fun = dnorm,
+                geom = "area",
+                args = list(
+                  mean = 0,
+                  sd = 1
+                ),
+                fill = NA, color = "firebrick4", alpha = 0.4, lwd = 1.2) +
+  scale_x_continuous(limits = c(-4,4), breaks = -4:4)+
+  ylab("density")+
+  stat_function(
+    fun = dnorm,
+    geom = "area",
+    fill = "steelblue4",
+    alpha = 0.5,
+    args = list(
+                  mean = 0,
+                  sd = 1
+                ),
+    xlim = c(-2, 2)
+  ) +
+  stat_function(
+    fun = dnorm,
+    geom = "area",
+    fill = "steelblue4",
+    alpha = 0.8,
+    args = list(
+                  mean = 0,
+                  sd = 1
+                ),
+    xlim = c(-1, 1)
+  )
+```
+
+## Any normal distribution can be transformed into the standard normal
+
+Say $X$ is normally distributed with mean $\mu$ and variance $\sigma^2$. We can write this as 
+
+$$
+X \sim N(\mu, \sigma^2)
+$$
+We can transform $X$ using the **$z$-transformation**
+
+$$
+\frac{X - \mu}{\sigma}
+$$
+Call this transformed version $Z$ i.e. $Z = \frac{X - \mu}{\sigma}$. Then
+
+$$
+Z \sim N(0,1)
+$$
+we can refer to the transformed version as **Z-scores**. 
+
+## Z-scores 
+
+- Z-scores tell you the number of standard deviations by which the value of a raw score is above or below the mean value.
+- In the heights example, the mean $\mu = 170$ and standard deviation $\sigma = 8$.
+
+Rohan is 180cm. What is his Z-score?
+
+$$
+Z = \frac{180-170}{8} = 1.25
+$$
+So Rohan is 1.25 standard deviations above the mean height. 
+
+- Monica is 168cm, so her Z-score is -0.25. So she is 0.25 standard deviations below the mean height. 
+
+# Conditional expectation
+## Conditional expectation 
+
+- The conditional expected value of a random variable, $Y$, is the probability- weighted average of all possible values of $Y$ given that another random variable, $X$, is equal to some specific value
+
+$$
+E(Y \mid X=x)=\sum_{y} y f_{Y \mid X}(y \mid x)
+$$
+
+A conditional expected value is essentially just a sub-population mean—it is a measure of central tendency for a conditional probability distribution
+
+## Conditional distributions and expectations
+
+```{r, echo = FALSE}
+library(tidyverse)
+ggplot() +
+  stat_function(
+    fun = dnorm,
+    geom = "area",
+    aes(fill = "not Dutch "),
+    color = "black",
+    alpha = .3,
+    args = list(
+                  mean = 167,
+                  sd = 8
+                ))+
+  stat_function(
+    fun = dnorm,
+    geom = "area",
+    aes(fill = "Dutch"),
+    color = "black",
+    alpha = .2,
+    args = list(
+                  mean = 180,
+                  sd = 4
+                ))+
+  scale_x_continuous(limits = c(140, 210), breaks = seq(140, 200, by = 15))+
+  scale_fill_brewer(name="", palette = "Set1")+
+  ggtitle("Distribution of heights based on whether or not nationality is Dutch")
+```
+
+## The conditional expectation function (CEF) decomposition property
+
+Any outcome $Y_i$ can be decomposed into the following
+
+$$
+Y_{i}=E\left(Y_{i} \mid X_{i}\right)+\varepsilon_{i}
+$$
+
+One way to interpret the CEF decomposition property is that $Y_i$ can
+be decomposed into two independent components: a component
+“explained by $X_i$ ” and a component “unexplained by $X_i$”
+
+
+# The simple linear regression model
+
+## Running example
+
+- Back to the `country_indicators` dataset. 
+- Research question: In 2017, how does the expected value of life expectancy differ or change across countries with different levels of fertility?
+- In other words, is life expectancy associated with fertility, and if so, how?
+
+- $Y_i$ is the response variable, and $X_i$ is the explanatory variable
+
+Questions:
+
+- In our example, what is Y and what is X?
+- In our example, what does $i$ refer to?
+
+## The SLR model
+
+In the case of SLR, the model is:
+
+$$
+Y_i = \beta_0 + \beta_1X_i + \varepsilon_i
+$$
+
+SLR models $Y_i$ as a simple linear function of $X_i$ with two parameters, $\beta_0$ and $\beta_1$
+
+- $\beta_0$ and $\beta_1$ are **regression coefficients**
+- $\beta_0$ is called the **intercept**
+- $\beta_1$ is called the **slope**
+
+## Estimated SLR model for life expectancy / TFR
+
+
+```{r, include = FALSE}
+library(tidyverse)
+library(here)
+country_ind <- read_csv(here("data/country_indicators.csv"))
+lm(life_expectancy ~ tfr, data = country_ind %>% filter(year==2017))
+```
+
+$$
+Y_i = 89.2 -5.35X_i + \varepsilon_i
+$$
+
+- $\hat{\beta_0} = 89.2$
+- $\hat{\beta_1} = -5.35$
+
+Notice that the regression coefficients get little hats!
+
+Notation:
+
+- $\beta_0$, $\beta_1$ are estimands (parameters of interest)
+- $\hat{\beta_0}$, $\hat{\beta_1}$ are estimators (functions/methods of getting a value of the parameters)
+- $\hat{\beta_0} = 89.2$ and $\hat{\beta_1} = -5.35$ are estimates (values calculated from observed data)
+
+## Recall the CEF decomposition property
+
+$$
+Y_{i}=E\left(Y_{i} \mid X_{i}\right)+\varepsilon_{i}
+$$
+
+So the SLR is a model for the CEF
+
+$$
+\begin{aligned}
+Y_{i} &=E\left(Y_{i} \mid X_{i}\right)+\varepsilon_{i} \\
+&=\beta_{0}+\beta_{1} X_{i}+\varepsilon_{i}
+\end{aligned}
+$$
+
+Hence why the interpretation of $\beta_0$ etc is the expected value or population mean.
+
+## SLR in R
+
+
+```{r, echo = TRUE}
+# filter dataset to just be 2017
+country_ind_2017 <- country_ind %>% filter(year==2017)
+# run the regression
+mod <- lm(life_expectancy ~ tfr, data = country_ind_2017)
+```
+
+## SLR in R
+
+\footnotesize
+```{r, echo=TRUE}
+summary(mod)
+```
+
+# Multiple linear regression
+
+## Multiple Linear Regression
+
+Let's look at the case of two independent variables
+
+- $Y_i$ is the dependent variable or response variable
+- $X_{i1}$ and $X_{i2}$ are the independent variables, explanatory variables or predictors
+
+Example:
+
+- $\{Y_1, Y_2, \dots, Y_{176}\}$ is life expectancy by country in 2017
+- $\{X_{1,1}, X_{2,1}, \dots, X_{176,1}\}$ is TFR by country in 2017
+- $\{X_{1,2}, X_{2,2}, \dots, X_{176,2}\}$ is child mortality by country in 2017
+
+Research question:
+
+- How does life expectancy differ across different levels of fertility and child mortality
+- In other words, is life expectancy associated with fertility and child mortality, and if so, how?
+
+## MLR model
+
+In a similar way to SLR, MLR is a model for the CEF:
+
+$$
+\begin{aligned}
+Y_{i} &=E\left(Y_{i} \mid X_{i 1}, X_{i 2}\right)+\varepsilon_{i} \\
+&=\beta_{0}+\beta_{1} X_{i 1}+\beta_{2} X_{i 2}+\varepsilon_{i}
+\end{aligned}
+$$
+
+Specifically, the most basic MLR model is a simple linear function of $X_{i 1}$ and $X_{i 2}$, and three parameters, $\beta_0$, $\beta_1$ and $\beta_2$.
+
+## Interpretation
+
+The MLR model: $E\left(Y_{i} \mid X_{i 1}, X_{i 2}\right) = \beta_{0}+\beta_{1} X_{i 1}+\beta_{2} X_{i 2}$
+
+- What is $\beta_0$?
+$$
+\begin{aligned}
+E\left(Y_{i} \mid X_{i 1}=0, X_{i 2}=0\right) &=\beta_{0}+\beta_{1}(0)+\beta_{2}(0) \\
+&=\beta_{0}
+\end{aligned}
+$$
+- $\beta_0$ is the is the expected value, or population mean, of $Y_i$ given both $X_{i 1}$ and $X_{i 2}$ equal zero. 
+
+## Interpretation
+
+The MLR model: $E\left(Y_{i} \mid X_{i 1}, X_{i 2}\right) = \beta_{0}+\beta_{1} X_{i 1}+\beta_{2} X_{i 2}$
+
+- What is $\beta_1$?
+$$
+\begin{aligned}
+E\left(Y_{i} \mid X_{i 1}\right.&\left.=x_{1}+1, X_{i 2}=x_{2}\right)-E\left(Y_{i} \mid X_{i 1}=x_{1}, X_{i 2}=x_{2}\right) \\
+&=\left(\beta_{0}+\beta_{1}\left(x_{1}+1\right)+\beta_{2} x_{2}\right)-\left(\beta_{0}+\beta_{1} x_{1}+\beta_{2} x_{2}\right) \\
+&=\left(\beta_{0}+\beta_{1} x_{1}+\beta_{1}+\beta_{2} x_{2}\right)-\left(\beta_{0}+\beta_{1} x_{1}+\beta_{2} x_{2}\right) \\
+&=\beta_{1}
+\end{aligned}
+$$
+- $\beta_1$ is the change in the expected value, or population mean, of $Y_i$ associated with a one unit increase in $X_{i 1}$, **holding $X_{i 2}$ constant at any value**
+
+Same idea for $\beta_2$.
+
+## Interpretation
+
+The MLR model: $E\left(Y_{i} \mid X_{i 1}, X_{i 2}\right) = \beta_{0}+\beta_{1} X_{i 1}+\beta_{2} X_{i 2}$
+
+- In general $\beta_{1}\left(x_{1}^{*}-x_{1}\right)$ is the change in the expected value of $Y_i$ associated with a $\left(x_{1}^{*}-x_{1}\right)$ change in $X_{i 1}$, holding $X_{i 2}$ constant
+- $\beta_{2}\left(x_{2}^{*}-x_{2}\right)$ is the change in the expected value of $Y_i$ associated with a $\left(x_{2}^{*}-x_{2}\right)$ change in $X_{i 2}$, holding $X_{i 1}$ constant
+
+
+## MLR in R
+
+Simple extension of SLR: 
+
+\tiny
+```{r, echo = TRUE} 
+mod <- lm(life_expectancy~tfr+child_mort, data = country_ind_2017)
+summary(mod)
+```
+
+How should we interpret?
+
+## Variance decomposition
+
+The variance of $Y_i$ can be decomposed into two components: a component 'explained
+by $X_{i 1}$ and $X_{i 2}$' and a component 'unexplained by $X_{i 1}$ and $X_{i 2}$'.
+
+\footnotesize
+$$
+\begin{aligned}
+\text{total sum of squares} &= \text{model sum of squares} + \text{reisdual sum of squares} \\
+SST &= SSM + SSR \\
+\Sigma_{i}\left(Y_{i}-\widehat{E}\left(Y_{i}\right)\right)^{2} &=\sum_{i}\left(\widehat{E}\left(Y_{i} \mid X_{i1}, X_{i2}\right)-\widehat{E}\left(Y_{i}\right)\right)^{2}+\sum_{i}\left(Y_{i}-\widehat{E}\left(Y_{i} \mid X_{i1}, X_{i2}\right)\right)^{2} \\
+\sum_{i}\left(Y_{i}-\bar{Y}_{i}\right)^{2} &=\sum_{i}\left(\widehat{Y}_{i}-\bar{Y}_{i}\right)^{2}+\quad \sum_{i}\left(Y_{i}-\widehat{Y}_{i}\right)^{2}
+\end{aligned}
+$$
+
+## Variance decomposition
+
+We can use this to assess model fit, through the $R^2$:
+
+$$
+R^{2}=\frac{S S M}{S S T}=1-\frac{S S R}{S S T}
+$$
+
+
+# Estimation
+
+## OLS Estimation
+
+- $E\left(Y_{i} \mid X_{i 1}, X_{i 2}\right)$, and by extension, $\beta_0, \beta_1$ and $\beta_2$ are unknown population quantities, so we need a way of estimating the MLR from sample data
+- Similar to the SLR case, we will use ordinary least squares (OLS) to choose estimators for $\{\beta_0, \beta_1, \beta_2\}$, denoted $\left\{\hat{\beta}_{0}, \hat{\beta}_{1}, \hat{\beta}_{2}\right\}$, that minimize the sum of squared residuals. This can be written as
+
+$$
+\begin{aligned}
+\sum_{i} \hat{\varepsilon}_{i}^{2} &=\Sigma_{i}\left(Y_{i}-\hat{E}\left(Y_{i} \mid X_{i 1}, X_{i 2}\right)\right)^{2} \\
+&=\sum_{i}\left(Y_{i}-\left(\hat{\beta}_{0}+\widehat{\beta}_{1} X_{i 1}+\widehat{\beta}_{2} X_{i 2}\right)\right)^{2}
+\end{aligned}
+$$
+
+## OLS Estimation: minimizing square residuals
+
+```{r, echo = FALSE}
+library(scatterplot3d)
+s3d <- scatterplot3d( 
+  x=country_ind_2017$child_mort, 
+  y=country_ind_2017$tfr,
+  z=country_ind_2017$life_expectancy,
+  xlab = "child mortality", 
+  ylab = "fertility rate",
+  zlab = "life expectancy",highlight.3d = TRUE)
+fit <- lm(life_expectancy ~ child_mort+tfr, data = country_ind_2017)
+s3d$plane3d(fit)
+
+```
+
+
+## OLS Estimation
+
+The OLS estimators for the MLR model parameters are:
+
+$$
+\hat{\beta}_{1} = \frac{\sum_{i}\left(\tilde{Y}_{i} \tilde{X}_{i 1}\right) \sum_{i}\left(\tilde{X}_{i 2} \tilde{X}_{i 2}\right) - \Sigma_{i}\left(\tilde{Y}_{i} \tilde{X}_{i 2}\right) \Sigma_{i}\left(\tilde{X}_{i 1} \tilde{X}_{i 2}\right)}{\sum_{i}\left(\tilde{X}_{i 1} \tilde{X}_{i 1}\right) \Sigma_{i}\left(\tilde{X}_{i 2} \tilde{X}_{i 2}\right) - \sum_{i}\left(\tilde{X}_{i 1} \tilde{X}_{i 2}\right) \Sigma_{i}\left(\tilde{X}_{i 1} \tilde{X}_{i 2}\right)}
+$$
+
+$$
+\hat{\beta}_{2} = \frac{\sum_{i}\left(\tilde{Y}_{i} \tilde{X}_{i 2}\right) \sum_{i}\left(\tilde{X}_{i 1} \tilde{X}_{i 1}\right) - \Sigma_{i}\left(\tilde{Y}_{i} \tilde{X}_{i 1}\right) \Sigma_{i}\left(\tilde{X}_{i 1} \tilde{X}_{i 2}\right)}{\sum_{i}\left(\tilde{X}_{i 1} \tilde{X}_{i 1}\right) \Sigma_{i}\left(\tilde{X}_{i 2} \tilde{X}_{i 2}\right) - \sum_{i}\left(\tilde{X}_{i 1} \tilde{X}_{i 2}\right) \Sigma_{i}\left(\tilde{X}_{i 1} \tilde{X}_{i 2}\right)}
+$$
+
+
+$$
+\hat{\beta}_{0}=\frac{1}{n} \sum_{i} Y_{i}-\hat{\beta}_{1}\left(\frac{1}{n} \sum_{i} X_{i 1}\right)-\hat{\beta}_{2}\left(\frac{1}{n} \sum_{i} X_{i 2}\right)=\bar{Y}_{i}-\hat{\beta}_{1} \bar{X}_{i 1}-\hat{\beta}_{2} \bar{X}_{i 2}
+$$
+
+where $\tilde{Y}_{i}=Y_{i}-\bar{Y}_{i}$, $\tilde{X}_{i 1}=X_{i 1}-\bar{X}_{i 1},$ and $\tilde{X}_{i 2}=X_{i 2}-\bar{X}_{i 2}$.
+
+## OLS Estimation
+
+$$
+\hat{\beta}_{1} = \frac{\sum_{i}\left(\tilde{Y}_{i} \tilde{X}_{i 1}\right) \sum_{i}\left(\tilde{X}_{i 2} \tilde{X}_{i 2}\right) - \Sigma_{i}\left(\tilde{Y}_{i} \tilde{X}_{i 2}\right) \Sigma_{i}\left(\tilde{X}_{i 1} \tilde{X}_{i 2}\right)}{\sum_{i}\left(\tilde{X}_{i 1} \tilde{X}_{i 1}\right) \Sigma_{i}\left(\tilde{X}_{i 2} \tilde{X}_{i 2}\right) - \sum_{i}\left(\tilde{X}_{i 1} \tilde{X}_{i 2}\right) \Sigma_{i}\left(\tilde{X}_{i 1} \tilde{X}_{i 2}\right)}
+$$
+
+Covariation between $Y_i$ and $X_{i1}$ that is independent of $X_{i2}$ divided by variation in $X_{i1}$ that is independent of $X_{i2}$.
+
+(Similarly for $\hat{\beta_2}$, but it is the covariation between $Y_i$ and $X_{i2}$ that is independent of $X_{i1}$ divided by variation in $X_{i2}$ that is independent of $X_{i1}$.)
+
+## OLS Estimation
+
+The 'partial effect' estimators can also be expressed as:
+
+$$
+\hat{\beta}_{1}=\frac{\sum_{i}\left(Y_{i}-\frac{1}{n} \Sigma_{i} Y_{i}\right)\left(x_{i 1}^{r}-\frac{1}{n} \Sigma_{i} X_{i 1}^{r}\right)}{\Sigma_{i}\left(X_{i 1}^{r}-\frac{1}{n} \Sigma_{i} X_{i 1}^{r}\right)^{2}}
+$$
+
+where $X_{i 1}^{r}=X_{i 1}-\hat{E}\left(X_{i 1} \mid X_{i 2}\right)$ are the residuals from an SLR of $X_{i1}$ on $X_{i2}$.
+
+In a similar way, $\hat{\beta_2}$ can be expressed in terms of the residuals from an SLR of $X_{i2}$ on $X_{i1}$.
+
+
+## OLS estimation of the MLR model: general case
+
+The OLS estimators for the MLR model parameters are:
+
+$$
+\hat{\beta}_{k}=\frac{\sum_{i}\left(Y_{i}-\frac{1}{n} \Sigma_{i} Y_{i}\right)\left(X_{i k}^{r}-\frac{1}{n} \Sigma_{i} X_{i k}^{r}\right)}{\Sigma_{i}\left(X_{i k}^{r}-\frac{1}{n} \Sigma_{i} X_{i k}^{r}\right)^{2}}
+$$
+
+$$
+\begin{aligned}
+\widehat{\beta}_{0} &=\frac{1}{n} \sum_{i} Y_{i}-\widehat{\beta}_{1}\left(\frac{1}{n} \sum_{i} X_{i 1}\right)-\cdots-\widehat{\beta}_{k}\left(\frac{1}{n} \sum_{i} X_{i k}\right)\\
+&=\bar{Y}_{i}-\widehat{\beta}_{1} \bar{X}_{i 1}-\cdots-\hat{\beta}_{k} \bar{X}_{i k}
+\end{aligned}
+$$
+
+where $X_{i k}^{r}$ are the residuals from a MLR of $X_{i k}$ on all the other explanatory variables in the model 
+
+## The MLR assumptions
+
+Recall the five assumptions of MLR:
+
+1. no model misspecification
+2. there is independent variation in all of the explanatory variables
+    + In other words, none of the explanatory variables are constants, and there are no perfect linear relationships among the explanatory variables
+    + e.g. can't have $X_{i1} = X_{i2}+X_{i3}$
+3. All variables are from a simple random sample
+    + This assumption implies that all members of a population have an equal probability of selection, that all possible samples of size $n$ have an equal probability of selection, and that each observation is independent of all the others
+    
+## The MLR assumptions
+
+4. The variance of $\varepsilon_{i}=Y_{i}-E\left(Y_{i} \mid X_{i 1}, X_{i 2}, \ldots, X_{i k}\right)$ is the same across all values of the explanatory variables i.e. $\operatorname{Var}\left(\varepsilon_{i} \mid X_{i 1}, X_{i 2}, \ldots, X_{i k}\right)=\sigma^{2}$
+    + This is called homoskedasticity
+5. The normality assumption $\varepsilon_{i}=Y_{i}-E\left(Y_{i} \mid X_{i 1}, X_{i 2}, \ldots, X_{i k}\right)$ is normally distributed
+
+## Sampling distribution of the MLR-OLS estimator
+
+- Under the MLR model assumptions, the OLS estimator, $\hat{\beta}_k$ is normally distributed with a mean equal to
+$$
+E\left(\hat{\beta}_{k}\right)=\beta_{k}
+$$
+and variance 
+$$
+\operatorname{Var}\left(\hat{\beta}_{k}\right)=\frac{\sigma^{2}}{\sum_{i}\left(X_{i k}-\bar{X}_{i k}\right)^{2}\left(1-R_{k}^{2}\right)}
+$$
+
+We use information about the probability distribution of $\hat{\beta}_k$ to make inferences about ${\beta}_k$.
+
+## Sampling distribution of the MLR-OLS estimator
+
+The standard deviation of $\hat{\beta}_{k}$
+
+$$
+sd\left(\hat{\beta}_{k}\right)=\sqrt{\frac{\sigma^{2}}{\sum_{i}\left(X_{i k}-\bar{X}_{i k}\right)^{2}\left(1-R_{k}^{2}\right)}}
+$$
+
+Under ideal conditions, statistical inferences about MLR parameters would be based on the fact that the standardized MLR-OLS estimator follows the z-distribution (i.e., the standard normal distribution)
+
+$$
+Z_{\widehat{\beta}_{k}}=\frac{\widehat{\beta}_{k}-\beta_{k}}{s d\left(\widehat{\beta}_{k}\right)} \sim N(0,1)
+$$
+But we don't know know the true value for $\sigma^2$, so we have to estimate. 
+
+## Standard error of the MLR-OLS estimator
+
+- Because $\sigma^2$ is an unknown population quantity, and thus $s d\left(\widehat{\beta}_{1}\right)$ is unknown, we have to estimate them
+- An estimator for the error variance $\sigma^2 = \operatorname{Var}\left(\varepsilon_{i} \mid X_{i}\right)$ is 
+
+$$
+\hat{\sigma}^2 = \frac{\sum_i \hat{\varepsilon}_i^2}{n-(k+1)} = \frac{SSR}{df}
+$$
+And the standard error of $\hat{\beta}_{k}$, which is an estimator of $s d\left(\widehat{\beta}_{1}\right)$, is 
+$$
+\operatorname{se}\left(\hat{\beta}_{k}\right)=\sqrt{\frac{\widehat{\sigma}^{2}}{\sum_{i}\left(X_{i k}-\bar{X}_{i k}\right)^{2}\left(1-R_{k}^{2}\right)}}
+$$
+
+## Sampling distribution of the SE- standardized MLR-OLS estimator
+
+Under the five assumption discussed, the SE-standardized $\hat{\beta}_k$
+
+$$
+T_{\widehat{\beta}_{k}}=\frac{\widehat{\beta}_{k}-\beta_{k}}{s e\left(\widehat{\beta}_{k}\right)}
+$$
+follows a t-distribution with $n-(k+1)$ degrees of freedom.
+
+## Example R output
+
+\tiny
+```{r, echo = TRUE}
+summary(lm(life_expectancy~tfr+child_mort+maternal_mort, data = country_ind))
+```
+
+## Interval estimation
+
+We can calculate the confidence intervals for MLR parameters, which provide a range of values that contain the true value of the parameter with known probability in repeated sampling. 
+
+## Interval estimation steps 
+
+1. Choose your confidence level (i.e., the probability that the interval estimate will cover the parameter of interest in repeated sampling)
+
+- Usually choose $\nu = 1- \alpha$ with $\alpha = 0.05$ so the confidence level is $\nu = 0.95$ or 95%
+
+2. find the critical value, $t_{\alpha}$, of the t-distribution with $n-2$ degrees of
+freedom for which $P\left(|T|>t_{\alpha}\right)=1-\nu=\alpha$
+
+- In words, the probability of the absolute value of our T statistic of interest being greater than the critical value (i.e. outside the bounds defined by $t_{\alpha}$) is $\alpha$ (e.g. 0.05 or 5%)
+
+## Interval estimation steps (ctd)
+
+3. Compute the limits of the confidence interval
+
+- Lower limit: $\hat{\beta}_{k}-\left(t_{\alpha} \times s e\left(\hat{\beta}_{k}\right)\right)$
+- Upper limit: $\hat{\beta}_{k}+\left(t_{\alpha} \times s e\left(\hat{\beta}_{k}\right)\right)$
+
+4. Interpret.
+
+- if random samples were repeatedly collected and confidence intervals were computed as outlined above for each sample, the true value of the parameter, $\beta_k$, would lie in the confidence interval in $\nu$ × 100 percent of the samples
+
+
+##
+\tiny
+```{r, echo = TRUE}
+
+mlr_mod <- lm(life_expectancy~tfr+child_mort+maternal_mort, data = country_ind)
+n <- nrow(country_ind)
+k <- 3
+# extract beta1 hat and se
+b1_hat <- summary(mlr_mod)$coefficients[2,1]
+se_b1_hat <- summary(mlr_mod)$coefficients[2,2]
+# choose a confidence level
+alpha <- 0.05
+v <- 1-alpha
+# calculate critical value
+t_alpha <- abs(qt(p = alpha/2, df = n-(k+1)))
+# calculate confidence interval
+# lower
+b1_hat - t_alpha*se_b1_hat
+# upper
+b1_hat + t_alpha*se_b1_hat
+
+
+```
+
+
+
