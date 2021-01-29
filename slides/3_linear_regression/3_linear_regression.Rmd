@@ -179,6 +179,8 @@ $$
 
 Calculate the variance for the number of heads in four coin flips. 
 
+## 
+
 ## Summary
 
 - If we know the probability distribution of a discrete random variable, we know the mean and variance of the random variable, and hence, the standard deviation of the random variable. 
@@ -669,6 +671,7 @@ mod <- lm(life_expectancy~tfr+child_mort, data = country_ind_2017)
 summary(mod)
 ```
 
+\normalsize
 How should we interpret?
 
 ## Variance decomposition
@@ -700,7 +703,7 @@ $$
 ## OLS Estimation
 
 - $E\left(Y_{i} \mid X_{i 1}, X_{i 2}\right)$, and by extension, $\beta_0, \beta_1$ and $\beta_2$ are unknown population quantities, so we need a way of estimating the MLR from sample data
-- Similar to the SLR case, we will use ordinary least squares (OLS) to choose estimators for $\{\beta_0, \beta_1, \beta_2\}$, denoted $\left\{\hat{\beta}_{0}, \hat{\beta}_{1}, \hat{\beta}_{2}\right\}$, that minimize the sum of squared residuals. This can be written as
+- We use ordinary least squares (OLS) to choose estimators for $\{\beta_0, \beta_1, \beta_2\}$, denoted $\left\{\hat{\beta}_{0}, \hat{\beta}_{1}, \hat{\beta}_{2}\right\}$, that minimize the sum of squared residuals. This can be written as
 
 $$
 \begin{aligned}
@@ -760,7 +763,7 @@ Covariation between $Y_i$ and $X_{i1}$ that is independent of $X_{i2}$ divided b
 The 'partial effect' estimators can also be expressed as:
 
 $$
-\hat{\beta}_{1}=\frac{\sum_{i}\left(Y_{i}-\frac{1}{n} \Sigma_{i} Y_{i}\right)\left(x_{i 1}^{r}-\frac{1}{n} \Sigma_{i} X_{i 1}^{r}\right)}{\Sigma_{i}\left(X_{i 1}^{r}-\frac{1}{n} \Sigma_{i} X_{i 1}^{r}\right)^{2}}
+\hat{\beta}_{1}=\frac{\sum_{i}\left(Y_{i}-\frac{1}{n} \Sigma_{i} Y_{i}\right)\left(X_{i 1}^{r}-\frac{1}{n} \Sigma_{i} X_{i 1}^{r}\right)}{\Sigma_{i}\left(X_{i 1}^{r}-\frac{1}{n} \Sigma_{i} X_{i 1}^{r}\right)^{2}}
 $$
 
 where $X_{i 1}^{r}=X_{i 1}-\hat{E}\left(X_{i 1} \mid X_{i 2}\right)$ are the residuals from an SLR of $X_{i1}$ on $X_{i2}$.
@@ -909,6 +912,18 @@ b1_hat + t_alpha*se_b1_hat
 
 
 ```
+
+## Summary
+
+- Linear regression is a model for the conditional expectation function
+- $R^2$ is a summary of model fit
+- Parameters $\beta$ are estimated used ordinary least squares
+- Assuming five MLR assumptions hold, the standardized MLR estimator has a $t$ distribution with $n-k$ degrees of freedom
+- Can use this to do hypothesis tests (normally testing whether $\beta=0$) and confidence intervals
+
+## Lab
+
+Practice with linear regression in R!
 
 
 
