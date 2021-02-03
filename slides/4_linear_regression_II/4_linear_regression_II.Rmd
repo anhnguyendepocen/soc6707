@@ -1,0 +1,418 @@
+---
+title: "SOC6707 Intermediate Data Analysis"
+author: "Monica Alexander"
+date: "Week 4: Linear Regression II"
+output: 
+  beamer_presentation:
+    slide_level: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, size = '\tiny')
+```
+
+```{r}
+library(tidyverse)
+library(here)
+gss <- read_csv(here("data/gss.csv"))
+country_ind <- read_csv(here("data/country_indicators.csv"))
+country_ind_2017 <- country_ind %>% filter(year==2017)
+```
+
+
+
+## Overview
+
+- Hypothesis testing of coefficients
+- Confidence intervals
+- Log transforms 
+
+## Review of SLR set-up
+
+- $Y_i$ is the response variable, and $X_i$ is the explanatory variable
+
+Example:
+
+- Research question: In 2017, how does the expected value of life expectancy differ or change across countries with different levels of fertility?
+- In other words, is life expectancy associated with fertility, and if so, how?
+
+
+## Fit SLR in R
+
+\tiny
+```{r, echo = TRUE}
+country_ind_2017 <- country_ind %>% filter(year==2017)
+slr_mod <- lm(life_expectancy~tfr, data = country_ind_2017)
+summary(slr_mod)
+```
+
+```{r, echo = FALSE}
+ehat <- resid(slr_mod)
+Yhat <- fitted(slr_mod)
+head(ehat)
+head(Yhat)
+```
+
+
+## Sampling distribution of SE-standardized $\hat{\beta}_1$
+
+Under the five assumption discussed, the SE-standardized $\hat{\beta}_k$
+
+$$
+T_{\widehat{\beta}_{k}}=\frac{\widehat{\beta}_{k}-\beta_{k}}{s e\left(\widehat{\beta}_{k}\right)}
+$$
+follows a t-distribution with $n-(k+1)$ degrees of freedom.
+
+- The t-distribution looks similar to the standard normal distribution, but has 'heavier tails' when $df<120$ (i.e. there's more probability mass further away from the mean)
+- for $df \geq 120$ the t-distribution converges to a standard normal distribution.
+
+## The t-distribution
+
+```{r}
+ggplot() +
+  stat_function(
+    fun = dnorm,
+    geom = "area",
+    color = "black",
+    aes(fill = "normal"),
+    alpha = .2,
+    args = list(
+                  mean = 0,
+                  sd = 1
+                ))+
+  stat_function(
+    fun = dt,
+    geom = "area",
+    color = "black",
+   aes(fill = "df = 5"),
+    alpha = .2,
+    args = list(
+                  df = 5
+                ))+
+  scale_x_continuous(limits = c(-3, 3))+
+  scale_fill_brewer(name = "", palette = "Set1")
+```
+
+# Hypothesis testing
+
+## Hypothesis testing
+
+Say we run an SLR. 
+
+- The slope coefficient $\beta_1$ is an unknown population quantity, which we have estimated with data from a random sample of that population
+- We can test hypotheses about this unknown population quantity based on the fact that the SE-standardized estimate follows a t-distribution with $n-2$ degrees of freedom
+- With knowledge of the probability distribution of $T_{\widehat{\beta}_{1}}$ we can make probabilistic statements about the chances of observing any particular value of $T_{\widehat{\beta}_{1}}$ given a hypothesized value for the unknown parameter
+- In particular, we are often interested in testing to see whether there is evidence to suggest that $\beta_1 \neq 0$ i.e. the slope coefficient is not zero i.e. there is evidence of a relationship between our dependent and independent variable
+
+
+## The t-test steps
+
+To test hypotheses about the value of $\beta_1$, we use a t-test (as the SE-standardized estimate follows a t-distribution). The steps of a t-test are:
+
+1. State your null and alternative hypotheses about $\beta_1$
+
+- The null hypothesis is denoted $H_0$
+- The alternative hypothesis is denoted $H_1$
+- e.g. $H_0: \beta_1 = b$ and $H_1: \beta_1 \neq b$
+
+2. Choose the level of type-I error, $\alpha$, which gives the probability of rejecting the null hypothesis when it is actually true
+
+- For example, $\alpha$ is most commonly chosen to be $0.05$ i.e. the type-I error rate is 5%
+
+## The t-test steps (ctd)
+
+3. Compute the t-test statistic
+
+$$
+t_{\widehat{\beta}_{1}}=\frac{\left(\widehat{\beta}_{1}-b\right)}{\operatorname{se}\left(\widehat{\beta}_{1}\right)}
+$$
+
+4. Compute the p-value, which gives the probability of observing a test statistic as or even more extreme than $t_{\widehat{\beta}_{1}}$ under the assumption
+that the null hypothesis is true
+
+5. Make a decision (reject the null if the p-value is less than $\alpha$, and fail to reject otherwise)
+
+## Logic of the t-test
+
+- Under the 5 assumptions discussed earlier, if the null hypothesis that $\beta_1 = b$ were in fact true, then $T_{\widehat{\beta}_{1}}=\frac{\widehat{\beta}_{1}-b}{s e\left(\widehat{\beta}_{1}\right)}$ would be t-distributed with $n-2$ df. 
+- We can use this result to make probabilistic statements about the chances of observing different values of $T_{\widehat{\beta}_{1}}$ in any given sample
+- If the probability of observing a test statistic as or even more extreme than the value we actually observe in our sample is very small, then we conclude that the null hypothesis is not likely true
+
+## The t-test in R
+
+The `lm` summary put put shows the calculations for $t_{\widehat{\beta}_{1}}$ and corresponding p-value. Specifically these calculations test whether $H_0: \beta_1 = 0$ and $H_1: \beta_1 \neq 0$.
+
+\tiny
+```{r, echo = TRUE}
+slr_mod <- lm(life_expectancy~tfr, data = country_ind_2017)
+summary(slr_mod)
+```
+
+\normalsize
+What should we conclude?
+
+## Logic of the t-test
+
+
+```{r}
+ggplot() +
+  stat_function(
+    fun = dt,
+    geom = "area",
+    color = "black",
+    fill = NA,
+    args = list(
+                  df = 174
+                ))+
+  scale_x_continuous(limits = c(-5, 5)) + 
+  ylab("density")+
+  ggtitle("Distribution of t-statistic under H0")
+```
+
+
+## Logic of the t-test
+
+We calculated $t_{\widehat{\beta}_{1}} = -23$
+
+```{r}
+ggplot() +
+  stat_function(
+    fun = dt,
+    geom = "area",
+    color = "black",
+    fill = NA,
+    args = list(
+                  df = 174
+                ))+
+  scale_x_continuous(limits = c(-25, 5)) + 
+  geom_vline(xintercept = -23, color = "red")+
+  ylab("density")+
+  xlab("x")+
+  ggtitle("Distribution of t-statistic under H0")
+```
+
+## Logic of the t-test
+
+- We calculated $t_{\widehat{\beta}_{1}} = -23$
+- Under the null hypothesis, the probability of observing this value is very small—thus, we conclude the null hypothesis is likely false
+
+```{r, fig.height = 5}
+ggplot() +
+  stat_function(
+    fun = dt,
+    geom = "area",
+    color = "black",
+    fill = NA,
+    args = list(
+                  df = 174
+                ))+
+  scale_x_continuous(limits = c(-25, 5)) + 
+  geom_vline(xintercept = -23, color = "red")+
+  ylab("density")+
+  xlab("x")+
+  ggtitle("Distribution of t-statistic under H0")
+```
+
+# Confidence intervals
+
+## Interval estimation
+
+- So far, we have focused on point estimation of regression parameters, which involves assigning a single value to these parameters that minimizes the sum of squared residuals
+- Interval estimation refers to computing confidence intervals for parameters, which provide a range of values that contain the true value of the parameter with known probability in repeated sampling
+
+## Interval estimation steps 
+
+1. Choose your confidence level (i.e., the probability that the interval estimate will cover the parameter of interest in repeated sampling)
+
+- Usually choose $\nu = 1- \alpha$ with $\alpha = 0.05$ so the confidence level is $\nu = 0.95$ or 95%
+
+2. find the critical value, $t_{\alpha}$, of the t-distribution with $n-(k+1)$ degrees of
+freedom for which $P\left(|T|>t_{\alpha}\right)=1-\nu=\alpha$
+
+- In words, the probability of the absolute value of our T statistic of interest being greater than the critical value (i.e. outside the bounds defined by $t_{\alpha}$) is $\alpha$ (e.g. 0.05 or 5%)
+
+## Interval estimation steps (ctd)
+
+3. Compute the limits of the confidence interval
+
+- Lower limit: $\hat{\beta}_{1}-\left(t_{\alpha} \times s e\left(\hat{\beta}_{1}\right)\right)$
+- Upper limit: $\hat{\beta}_{1}+\left(t_{\alpha} \times s e\left(\hat{\beta}_{1}\right)\right)$
+
+4. Interpret.
+
+- if random samples were repeatedly collected and confidence intervals were computed as outlined above for each sample, the true value of the parameter, $\beta_1$, would lie in the confidence interval in $\nu$ × 100 percent of the samples
+
+## Confidence intervals in R
+
+\tiny
+```{r, echo = TRUE}
+# extract beta1 hat and se
+summary(slr_mod)$coefficients
+
+b1_hat <- summary(slr_mod)$coefficients[2,1]
+se_b1_hat <- summary(slr_mod)$coefficients[2,2]
+
+# choose a confidence level
+alpha <- 0.05
+v <- 1-alpha
+n <- nrow(country_ind_2017)
+
+# calculate critical value
+t_alpha <- abs(qt(p = alpha/2, df = n-2))
+t_alpha
+
+# calculate confidence interval
+
+# lower
+b1_hat - t_alpha*se_b1_hat
+
+# upper
+b1_hat + t_alpha*se_b1_hat
+
+
+```
+
+## Diagram to explain critical value
+
+## Summary
+
+
+- Under a set of assumptions, the SE-standardized estimator $\hat{\beta}_k$ is t-distributed
+- We can use this information to test null hypotheses about whether or not the coefficients are zero, and to create confidence intervals of the likely range of values of $\beta_k$
+- Note that a t-test of the null hypothesis that the coefficient in an MLR model is zero is a test of statistical independence between the dependent and the independent variable
+
+
+# Regression with transformed variables
+
+## Motivation
+
+```{r, echo = FALSE}
+country_ind_2017 %>% 
+  ggplot(aes(gdp, tfr)) + geom_point() + theme_bw() + 
+  labs(y = "TFR", x = "GDP", title = "TFR versus GDP, 2017")
+```
+
+## Motivation
+
+```{r, echo = FALSE}
+country_ind_2017 %>% 
+  ggplot(aes(gdp, tfr)) + geom_point() + theme_bw() + 
+  #scale_y_log10() + 
+  scale_x_log10()+
+  labs(y = "TFR", x = "GDP", title = "TFR versus GDP, 2017", subtitle= "GDP plotted on log scale")
+```
+
+## Variable transformations
+
+- Sometimes we may want to allow for nonlinearities in our models
+- A common way to deal with this is to perform a nonlinear transformation on one or more of the explanatory variables **AND/OR** on the response variable
+- The interpretation of parameter estimates is less intuitive after transforming the explanatory variables and/or the response variable, although some transformations lend themselves to simple interpretations (i.e., the log transform)
+
+
+## Response variable
+
+\includegraphics{../fig/transform1}
+
+## Explanatory variable
+
+\includegraphics{../fig/transform2}
+
+## Log transforms
+
+- By far the most common transformation is the natural log transform
+- Either $\log Y$ or $\log X$ (or both)
+- Luckily, the log transform has a meaningful coefficient interpretation
+
+For response variables, when the model is 
+$$
+\begin{aligned}
+\log Y_{i} &=E\left(Y_{i} \mid X_{i 1}, X_{i 2}, \ldots, X_{i k}\right)+\varepsilon_{i} \\
+&=\beta_{0}+\beta_{1} X_{i 1}+\beta_{2} X_{i 2}+\cdots+\beta_{k} X_{i k}+\varepsilon_{i}
+\end{aligned}
+$$
+The interpretation is 
+$$
+100 \beta_{k}\left(\Delta X_{i k}\right)=\% \Delta Y_{i}
+$$
+where $\Delta$ stands for "change".
+
+- Thus, a one unit increase in $X_k$ is associated with a $100 \cdot \beta_k$% change in $Y_i$, on average, holding other factors constant
+
+
+## Log transforms
+
+For explanatory variables, when the model is 
+$$
+\begin{aligned}
+Y_{i} &=E\left(Y_{i} \mid \log X_{i 1}, X_{i 2}, \ldots, X_{i k}\right)+\varepsilon_{i} \\
+&=\beta_{0}+\beta_{1} \log X_{i 1}+\beta_{2} X_{i 2}+\cdots+\beta_{k} X_{i k}+\varepsilon_{i}
+\end{aligned}
+$$
+The interpretation is 
+$$
+\frac{\beta_{k}}{100}\left(\% \Delta X_{i k}\right)=\Delta Y_{i}
+$$
+
+where $\Delta$ stands for "change".
+
+- Thus, a one percent (1%) increase in $X_k$ is associated with a $\frac{\beta_{k}}{100}$ unit change in $Y_i$, on average, holding other factors constant
+
+## Log transforms 
+
+When both the response and explanatory variable is transformed, so the model is 
+$$
+\begin{aligned}
+\log Y_{i} &=E\left(Y_{i} \mid \log X_{i 1}, X_{i 2}, \ldots, X_{i k}\right)+\varepsilon_{i} \\
+&=\beta_{0}+\beta_{1} \log X_{i 1}+\beta_{2} X_{i 2}+\cdots+\beta_{k} X_{i k}+\varepsilon_{i}
+\end{aligned}
+$$
+The interpretation is 
+$$
+\beta_{k}\left(\% \Delta X_{i k}\right)=\%\Delta Y_{i}
+$$
+
+- Thus, a one percent (1%) increase in $X_k$ is associated with a $\beta_k$ % change in $Y_i$, on average, holding other factors constant
+
+
+## Example
+
+\tiny
+```{r, echo = TRUE}
+country_ind <- country_ind %>% 
+  mutate(log_tfr = log(tfr)) # log of GDP
+
+summary(lm(log_tfr ~ child_mort + gdp, data = country_ind))
+```
+
+- A 10^5 unit increase in GDP is associated with a 30% decrease in TFR, holding child mortality constant
+
+
+## Example
+
+\tiny
+```{r, echo = TRUE}
+country_ind <- country_ind %>% 
+  mutate(log_gdp = log(gdp)) # log of GDP
+
+summary(lm(tfr ~ child_mort + log_gdp, data = country_ind))
+```
+- A 1% increase in GDP is associated with a decrease of 0.003 children in TFR, holding child mortality constant
+
+
+## Example
+
+\tiny
+```{r, echo = TRUE}
+summary(lm(log_tfr ~ child_mort + log_gdp, data = country_ind))
+```
+- A 1% increase in GDP is associated with a 0.12% decrease in TFR, holding child mortality constant
+- A 10% increase in GDP is associated with a 1.2% decrease in TFR, holding child mortality constant
+
+
+## Summary
+
+- Often we may want to transform dependent or independent variables to make relationships more linear
+- Log transforms are by far the most common
+- This is because many variables are naturally log-normally distributed, e.g. income and GDP
+
+
