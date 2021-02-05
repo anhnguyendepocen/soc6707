@@ -217,8 +217,7 @@ ggplot() +
 
 ## Interval estimation
 
-- So far, we have focused on point estimation of regression parameters, which involves assigning a single value to these parameters that minimizes the sum of squared residuals
-- Interval estimation refers to computing confidence intervals for parameters, which provide a range of values that contain the true value of the parameter with known probability in repeated sampling
+Interval estimation refers to computing confidence intervals for parameters, which provide a range of values that contain the true value of the parameter with known probability in repeated sampling
 
 ## Interval estimation steps 
 
@@ -227,7 +226,7 @@ ggplot() +
 - Usually choose $\nu = 1- \alpha$ with $\alpha = 0.05$ so the confidence level is $\nu = 0.95$ or 95%
 
 2. find the critical value, $t_{\alpha}$, of the t-distribution with $n-(k+1)$ degrees of
-freedom for which $P\left(|T|>t_{\alpha}\right)=1-\nu=\alpha$
+freedom for which $P\left(|T|>t_{\alpha}/2\right)=1-\nu=\alpha$
 
 - In words, the probability of the absolute value of our T statistic of interest being greater than the critical value (i.e. outside the bounds defined by $t_{\alpha}$) is $\alpha$ (e.g. 0.05 or 5%)
 
@@ -322,6 +321,15 @@ country_ind_2017 %>%
 - By far the most common transformation is the natural log transform
 - Either $\log Y$ or $\log X$ (or both)
 - Luckily, the log transform has a meaningful coefficient interpretation
+
+We will look at 
+
+- $log Y_i = \beta_{0}+\beta_{1} X_{i 1}+\beta_{2} X_{i 2}+\cdots+\beta_{k} X_{i k}+\varepsilon_{i}$
+- $Y_i = \beta_{0}+\beta_{1} \log X_{i 1}+\beta_{2} X_{i 2}+\cdots+\beta_{k} X_{i k}+\varepsilon_{i}$
+- $log Y_i = \beta_{0}+\beta_{1} \log X_{i 1}+\beta_{2} X_{i 2}+\cdots+\beta_{k} X_{i k}+\varepsilon_{i}$
+
+
+## Log transforms
 
 For response variables, when the model is 
 $$
