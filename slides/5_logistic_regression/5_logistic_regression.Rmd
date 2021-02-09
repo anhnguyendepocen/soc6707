@@ -1,0 +1,434 @@
+---
+title: "SOC6707 Intermediate Data Analysis"
+author: "Monica Alexander"
+date: "Week 5: Logistic Regression"
+output: 
+  beamer_presentation:
+    slide_level: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, size = '\tiny')
+```
+
+
+## Overview
+
+- Binary dependent variables
+- Logit transform
+- Logistic regression
+- Logistic regression in R
+- Inference
+
+## Notes
+
+- No class next week
+- Assignment due today
+
+
+## Motivation
+
+What if we are interested in modeling a binary response variable as a function of continuous and/or categorical explanatory variables?
+
+- A binary response variable is an indicator variable that is coded 1 to indicate that an observation is a member of a particular group/category, and 0 otherwise
+    + e.g. high income yes/no
+    + has bachelor or higher yes/no
+    + at least good self-reported health yes/no
+- Today we will see how we can build a regression model with a binary outcome as the dependent/response variable
+
+## Binary dependent variable
+
+- For example, let's use the country indicators dataset again. 
+- $Y_i = 1$ if a country has a high TFR (i.e. TFR > 3.5) and $Y_i = 0$ otherwise. 
+- Note that we have to create this variable using the `ifelse` function:
+
+```{r}
+library(tidyverse)
+library(here)
+country_ind <- read_csv(here("data/country_indicators.csv"))
+country_ind_2017 <- country_ind %>% filter(year==2017)
+```
+
+\tiny
+```{r, echo = TRUE}
+country_ind_2017 <- country_ind_2017 %>% 
+  mutate(high_tfr = ifelse(tfr>3.5, 1, 0))
+head(country_ind_2017 %>% select(country, region, tfr, high_tfr))
+```
+
+## Binary dependent variable
+
+- $Y_i = 1$ if a country has a high TFR (i.e. TFR > 3.5) and $Y_i = 0$ otherwise. 
+- We are interested in exploring how high TFR is associated with life expectancy and gross domestic product (GDP)
+- What does this actually mean, given "high TFR" is 1 or 0 (yes or no)?
+- We are interested to see if the **probability** of high fertility is associated with life expectancy and GDP
+
+```{r, eval = FALSE}
+summary(glm(high_tfr ~ life_expectancy + gdp, 
+            family = "binomial", 
+            data = country_ind_2017))
+```
+
+## The Bernoulli distribution
+
+- Recall earlier we said that every coin flip (or any experiment with only two outcomes) is called a **Bernoulli trial**
+- Each trial can have only two outcomes, often called success and failure (or in our case, yes/no)
+- The probability of a success is usually denoted by $p$ and the probability of a failure by $q$;
+- Thus, the sum of $p$ and $q$ is equal to 1
+
+The Bernoulli distribution
+$$
+f_{Y}(y ; p)=p^{y}(1-p)^{1-y} \text { for } Y=\{0,1\}
+$$
+summarizes all the probabilities associated with a binary variable. This is a **probability mass function** (i.e. the probability distribution function for a discrete RV)
+
+## The expectation of a binary variable
+
+- Recall that the regression models we've looked at so far (SLR and MLR) are models for the **conditional expectation function** (CEF)
+- So if we want to model a binary outcome as a dependent variable in a regression model, we first need to find the CEF
+
+
+##  The expectation of a binary variable
+
+- Recall that for a discrete random variable, $Y$, with a known probability distribution $P(Y_i)$ and where $Y_i$ is the $i$th outcome in the set of $k$ simple events:
+$$
+E(Y_i)=Y_{1} \times P\left(Y_{1}\right)+Y_{2} \times P\left(Y_{2}\right)+\ldots+Y_{k} \times P\left(Y_{k}\right)=\sum_{i=1}^{k} Y_{i} \times P\left(Y_{i}\right)
+$$
+- So the expected value of a binary variable is
+$$
+\begin{aligned}
+E\left(Y_{i}\right) &=\sum_{y=0}^{y=1} y f_{Y}(y) \\
+&=(0) p^{0}(1-p)^{1-0}+(1) p^{1}(1-p)^{1-1} \\
+&=p
+\end{aligned}
+$$
+- That is, the expectation of a binary variable is equal to the probability that the variable is equal to one
+
+## Conditional Expectation Function
+
+- By extension, the conditional expectation of a binary variable is equal to the conditional probability that the variable is equal to one—that is,
+
+$$
+E\left(Y_{i} \mid X_{i 1}, \ldots, X_{i k}\right)=P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)
+$$
+
+- The regression models discussed previously were direct models for the CEF. But there's a complication here in that the CEF is bounded between values zero and one. 
+- As such, in the case of binary response variables, we first **transform** the CEF to be unbounded
+
+## Review: logarithms
+
+$$\log_bx$$
+
+- The logarithm of a positive real number $x$ with respect to base $b$ is the exponent by which $b$ must be raised to yield $x$.
+- It is the inverse function to exponentiation
+- The natural logarithm (often just written $\log x$) is to the base $e$, the mathematical constant $e \approx 2.718$
+
+$$
+y = \log x
+$$
+implies
+$$
+x = e^y = \exp y
+$$
+
+- You can think of taking the natural logarithm of $x$ as transforming $x$ to be on a different scale 
+
+## The logit function
+
+- The logit function takes a probability as its argument and then returns a value between negative infinity and positive infinity
+- In other words, the logit transformation of a probability is unbounded even though the probability is bounded by the unit interval, [0,1]
+- It is also called log-odds
+
+The logit function of probability $p$ is 
+
+$$
+\text{logit } p = \log \frac{p}{1-p}
+$$
+
+## The logit function
+
+For example, 
+$$
+\text{logit } 0.5 = \log \frac{0.5}{1-0.5} = \log 1 = 0
+$$
+
+```{r, fig.height = 5}
+tibble(x = seq(0, 1, by = 0.01), y = log(x/(1-x))) %>% 
+  ggplot(aes(x,y))+geom_line() + ylab("logit p") + xlab("p") + ggtitle("The logit or log-odds function")
+```
+
+## Aside: odds
+
+Given probability $p$, odds are calculated as
+
+$$
+\frac{p}{1-p}
+$$
+
+- Odds provide a measure of the likelihood of a particular outcome. They are calculated as the ratio of the number of events that produce the outcome to the number that don't. 
+- Another way of expressing likelihood
+- Often expressed as "1 to x"
+- e.g. six sided die:
+    + Probability rolling a 6 = ?
+    + Odds of rolling a 6 = ?
+    
+
+
+## The logistic regression model
+
+Logistic regression is a model for the conditional expectation of a binary response variable—that is, for the conditional probability that a binary response variable is equal to one.
+
+$$
+\log \left(\frac{P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)}{1-P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)}\right)=\beta_{0}+\beta_{1} X_{i 1}+\cdots+\beta_{k} X_{i k} 
+$$
+where $\log \left(\frac{P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)}{1-P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)}\right)$ is known as the "log odds," or the "logit"
+transformation, and the $\beta$ are unknown parameters to be estimated from data
+
+## The logistic regression model 
+
+$$
+\log \left(\frac{P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)}{1-P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)}\right)=\beta_{0}+\beta_{1} X_{i 1}+\cdots+\beta_{k} X_{i k} 
+$$
+
+We can rearrange this formula to get an expression for the CEF:
+
+$$
+P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)=\frac{\exp \left(\beta_{0}+\beta_{1} X_{i 1}+\cdots+\beta_{k} X_{i k}\right)}{1+\exp \left(\beta_{0}+\beta_{1} X_{i 1}+\cdots+\beta_{k} X_{i k}\right)}
+$$
+
+- This is the inverse of the logit function
+- The inverse of the logit link function is bounded by the unit interval (i.e., it falls between 0 and 1 for any value), which ensures that the conditional probabilities all fall within the logical range
+
+## The logistic regression model 
+$$
+\log \left(\frac{P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)}{1-P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)}\right)=\beta_{0}+\beta_{1} X_{i 1}+\cdots+\beta_{k} X_{i k} 
+$$
+To summarize:
+
+- We transform probabilities to run a regression model that can have values anywhere on the real line
+- We can then untransform these probabilities to get values back on the [0,1] scale
+
+## Interpreting logistic regression on the logit scale
+
+$$
+\log \left(\frac{P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)}{1-P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)}\right)=\beta_{0}+\beta_{1} X_{i 1}+\cdots+\beta_{k} X_{i k} 
+$$
+What is $\beta_0$?
+
+$$
+\begin{array}{c}
+\log \left(\frac{P\left(Y_{i}=1 \mid X_{i 1}=0, \ldots, X_{i k}=0\right)}{1-P\left(Y_{i}=1 \mid X_{i 1}=0, \ldots, X_{i k}=0\right)}\right)=\beta_{0}+\beta_{1}(0)+\cdots+\beta_{k}(0) \\
+=\beta_{0}
+\end{array}
+$$
+
+$\beta_0$ is the log odds that $Y_i = 1$ given that all explanatory variables are equal to zero.
+
+## Interpreting logistic regression on the logit scale
+
+What is $\beta_1$?
+
+\footnotesize 
+
+$$
+\begin{aligned}
+\log &\left(\frac{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}+1, X_{i 2}=x_{2}^{*}, \ldots, X_{i k}=x_{k}^{*}\right)}{1-P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}+1, X_{i 2}=x_{2}^{*}, \ldots, X_{i k}=x_{k}^{*}\right)}\right)\\
+&-\log \left(\frac{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}, X_{i 2}=x_{2}^{*}, \ldots, X_{i k}=x_{k}^{*}\right)}{1-P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}, X_{i 2}=x_{2}^{*}, \ldots, X_{i k}=x_{k}^{*}\right)}\right) \\
+&=\left(\beta_{0}+\beta_{1}\left(x_{1}^{*}+1\right)+\beta_{2} x_{2}^{*}+\cdots+\beta_{k} x_{k}^{*}\right)-\left(\beta_{0}+\beta_{1} x_{1}^{*}+\beta_{2} x_{2}^{*}+\cdots+\beta_{k} x_{k}^{*}\right) \\
+&=\beta_{1} \\
+&=\log \left(\frac{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}+1, \dots \right)}{1-P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}+1,\dots\right)} \middle/ \frac{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}, \dots\right)}{1-P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}, \dots\right)}\right)
+\end{aligned}
+$$
+
+\normalsize
+$\beta_1$ is a log odds ratio, which gives the change in the log odds that $Y_i = 1$ associated with a unit increase in $X_{i1}$, holding other variables constant
+
+## Interpreting logistic regression on the odds scale
+$$
+\log \left(\frac{P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)}{1-P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)}\right)=\beta_{0}+\beta_{1} X_{i 1}+\cdots+\beta_{k} X_{i k} 
+$$
+What is $\exp \beta_0$?
+
+$$
+\begin{array}{c}
+\exp \beta_0 = \exp \left(\log \left(\frac{P\left(Y_{i}=1 \mid X_{i 1}=0, \ldots, X_{i k}=0\right)}{1-P\left(Y_{i}=1 \mid X_{i 1}=0, \ldots, X_{i k}=0\right)}\right)\right)\\
+=\frac{P\left(Y_{i}=1 \mid X_{i 1}=0, \ldots, X_{i k}=0\right)}{1-P\left(Y_{i}=1 \mid X_{i 1}=0, \ldots, X_{i k}=0\right)}
+\end{array}
+$$
+
+$\exp \beta_0$ is the odds that $Y_i = 1$ given that all explanatory variables are equal to zero.
+
+## Interpreting logistic regression on the odds scale
+
+What is $\exp \beta_1$?
+
+\tiny 
+
+$$
+\begin{aligned}
+\exp \left(\beta_{1}\right) &=\exp \left(\log \left(\frac{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}+1, \dots \right)}{1-P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}+1, \dots \right)} / \frac{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}, \dots\right)}{1-P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}, \dots \right)}\right)\right) \\
+&=\frac{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}+1, \dots \right)}{1-P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}+1, \dots \right)} / \frac{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}, \dots \right)}{1-P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*},\dots \right)}
+\end{aligned}
+$$
+
+\normalsize
+$\exp \beta_1$ is a odds ratio, which ratio of the odds that $Y_i = 1$ associated with a unit increase in $X_{i1}$, holding other variables constant
+
+## Some brief comments on estimation (MLE)
+
+- Previous with simple and multiple linear regression we saw estimation was based on ordinary least squares (OLS)
+- OLS aims to find the estimates $\hat{\beta}$ which minimize the sum of squares of residuals (i.e. the difference between the data and the fit)
+- Put another way, we were finding estimates $\hat{\beta}$ that maximized the likelihood of the seeing the data that we observed
+- This is equivalent to what is called **Maximum likelihood estimation** (MLE)
+
+## Some brief comments on estimation (MLE)
+
+- In logistic regression, we obtain estimates $\hat{\beta}$ for regression coefficients ${\beta}$ using MLE
+- In particular we are finding an estimate for $\beta$, denoted by $\hat{\beta}$, that maximizes the probability of obtaining the observed sample data given the model
+- The math and form of the estimators is beyond the scope of this class, but important to be aware that the principle of estimation is similar to the SLR and MLR cases. 
+
+## Example in R
+
+- Can run logistic regression in R using the `glm` function
+- The additional `family` argument is related to the fact we are dealing with a binary response variable
+
+\footnotesize
+```{r, echo = TRUE}
+lr_mod <- glm(high_tfr ~ life_expectancy + gdp, 
+              family = "binomial", data = country_ind_2017)
+```
+
+
+## Example in R
+\tiny
+```{r, echo = TRUE}
+summary(lr_mod)
+```
+
+## Questions
+
+Interpret 
+
+- $\beta_1$
+- $\exp(\beta_1)$ 
+
+\tiny
+```{r, echo = TRUE}
+coef(lr_mod)
+exp(coef(lr_mod))
+```
+
+## Questions
+
+- What is the probability of high TFR for a country with a life expectancy of 70 and a GDP of 9500?
+
+\tiny
+```{r,echo = TRUE}
+beta0 <- coef(lr_mod)[[1]] # used double square brackets here to remove names (could use single)
+beta1 <- coef(lr_mod)[[2]]
+beta2 <- coef(lr_mod)[[3]]
+
+estimated_log_odds <- beta0 + beta1*70 + beta2*9500
+
+estimated_probability <- exp(estimated_log_odds)/(1+exp(estimated_log_odds))
+
+estimated_log_odds
+estimated_probability
+
+```
+
+
+## Including a categorical explanatory variable
+
+\tiny
+```{r, echo = TRUE}
+lr_mod_2 <- glm(high_tfr ~ region, 
+              family = "binomial", data = country_ind_2017)
+summary(lr_mod_2)
+```
+## Categorical explanatory variables
+
+- The coefficient on Sub-Saharan Africa is 3.41. What does this mean?
+
+\tiny
+```{r, echo = TRUE}
+exp(coef(lr_mod_2)[9])
+```
+
+
+# Inference
+
+## Some brief comments on the sampling distribution of MLE
+
+- Thinking back to SLR and MLR, if we believed the 5 assumptions stated, we could write down the sampling distribution for the estimator $\hat{\beta}$
+- (It was a Normal distribution)
+- We could then use this property to make inferences about how likely $\hat{\beta}$ was to be different from zero, for example (hypothesis testing)
+- We can use a similar approach here with MLE estimators involved in logistic regression
+
+## Asymptotic distribution of MLE
+
+- It is known that the limiting distribution of the MLE $\hat{\beta}_k$ is normal with a mean $\beta_k$ and some variance (related to the properties of the estimator)
+- Because the probability distribution of $\hat{\beta}_k$ converges to a normal distribution as the sample size increases, we can use this fact to make approximate inferences about $\beta_k$
+- It turns out that the SE-standardized MLE
+$$
+Z_{\widehat{\beta}_{k}}=\frac{\widehat{\beta}_{k}-\beta_{k}}{s e\left(\widehat{\beta}_{k}\right)}
+$$
+follows a standard normal distribution, which we can use to make inferences about $\beta_k$
+
+## Hypothesis testing
+
+- The $\beta_k$ parameters are unknown population quantities of interest, which we have estimated with data from a random sample of the population
+- We can test hypotheses about these unknown population quantities based on the fact that their SE-standardized estimates follow an approximately standard normal distribution in large samples
+- With knowledge of the distribution of $Z_{\widehat{\beta}_{k}}$ we can make probabilistic statements about the chances of observing any particular value of $Z_{\widehat{\beta}_{k}}$ given a hypothesized value for the unknown parameter of interest
+- As before, we are usually testing the null hypothesis that $\beta_k = 0$
+- This test is called the Wald test
+
+## The Wald test
+
+1. State your null and alternative hypotheses about $\beta_k$
+2. Choose the level of type-I error, $\alpha$
+3. Compute the Wald test statistic $z_{\widehat{\beta}_{k}}=\frac{\widehat{\beta}_{k}-\beta_{k}}{s e\left(\widehat{\beta}_{k}\right)}$
+4. Compute the p-value, which gives the probability of observing
+a test statistic as or more extreme than $z_{\widehat{\beta}_{k}}$ under the assumption that the null hypothesis is true
+5. Make a decision (reject the null if the p-value is less than $\alpha$, and fail to reject otherwise)
+
+Reminder: think of the p-value as a summary measure of 'evidence against the null hypothesis' (and *not* as evidence for the alternative hypothesis)
+
+## Example
+
+\tiny
+
+```{r, echo = TRUE}
+summary(lr_mod)
+```
+
+## Interval estimation
+
+1. Choose your confidence level (i.e., the probability that the interval estimate will cover the parameter of interest in repeated sampling)
+2. Find the critical value, $z_{\alpha}$, of the standard normal distribution for which $P\left(|Z|>\left|z_{\alpha}\right|\right)=1-v=\alpha$
+3. Compute the limits of the confidence interval
+    + upper: $\hat{\beta}_k + \left(z_{\alpha} \times se( \hat{\beta}_k )\right)$
+    + lower:$\hat{\beta}_k - \left(z_{\alpha} \times se( \hat{\beta}_k )\right)$
+
+Interpretation:  if sufficiently large samples were repeatedly collected and confidence intervals were computed for each sample, the true value of the parameter, $\beta_k$, would be contained by the confidence interval in $\nu \times 100$ percent of the samples
+
+## Interval estimation
+
+In R, for logistic regression, use `confint`
+
+\tiny
+```{r, echo = TRUE}
+confint(lr_mod) # default is 0.05
+confint(lr_mod, level = 0.2)
+```
+
+\normalsize
+To get the confidence intervals for exponentiated coefficients, can just exponentiate the confidence intervals.  
+
+## Summary
+
+- Logistic regression can be used when the outcome of interest is binary (yes/no)
+- You can have one or more explanatory variables, which can be quantitative or categorical
+- Practically, running logistic regression in R is very similar to linear regression
+
+
