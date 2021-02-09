@@ -1,0 +1,118 @@
+---
+title: 'Week 9: Logistic regression'
+author: "Monica Alexander"
+date: "09/02/2021"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Overview
+
+We are going to look at the association of income (low income or not), age and education in the GSS. 
+
+# Data
+
+Load in the GSS
+
+
+```{r}
+library(tidyverse)
+library(here)
+gss <- read_csv(here("data/gss.csv"))
+```
+
+# Create binary outcome variable
+
+The income variable in the GSS is categorical. You can look at different categories by using the `unique` function:
+
+```{r}
+unique(gss$income_respondent)
+```
+
+For the purposes of our logistic regression, let's define a binary variable called "low income" that is equal to 1 if a respondent is in the less than $25,000 category and 0 otherwise. 
+
+```{r}
+gss <- gss %>% 
+  mutate(low_income = ifelse(income_respondent=="Less than $25,000", 1, 0))
+```
+
+NOTE: this is not the only possible way of studying income as a binary outcome. For example, you may be more interested in whether or not a respondent has high income, and define a binary variable called `high_income` if the respondent has more than \$125,000. Additionally, you can define a binary outcome based on more than one category. For example, if we were interested in whether respondents earned more or less than \$50,000, we could define the following:
+
+```{r}
+gss <- gss %>% 
+  mutate(income_less_than_50k = ifelse(income_respondent=="Less than $25,000"|
+                                         income_respondent=="$25,000 to $49,999", 1, 0))
+```
+
+Note that the vertical bar "|" means "or" so you read the above code as "if the income of the respondent is less than \$25,000 OR between \$25,000 and \$49,000 then the new variable `income_less_than_50k` is equal to 1, otherwise it is equal to 0."
+
+# Logistic regression
+
+Now run a logistic regression with dependent variable `low_income` and independent variable age. 
+
+```{r}
+mod <- glm(low_income ~ age, family = "binomial", data = gss)
+summary(mod)
+```
+
+Remember that the coefficients are on the 'log-odds' scale. To convert to the odds scale, you can exponentiate:
+
+```{r}
+exp(coef(mod))
+```
+
+
+## Question
+
+Interpret $\beta_1$ and $\exp \beta_1$
+
+# Regression with age groups
+
+using age as a quantitative variable as above assumes that the association with income and age is always constant: that is, the probability of low income always decreases with increased age. But do we believe this? It might be the case that the likelihood of low income changes over age profiles. To investigate this, we can define a age group categorical variable and run a regression with this variable. 
+
+First define a 10 year age group variable:
+
+```{r}
+age_groups <- seq(10, 80, by = 10)
+
+gss$age_group <- as.character(cut(gss$age, 
+                   breaks= c(age_groups, Inf), 
+                   labels = age_groups, 
+                   right = FALSE))
+```
+
+Now run a regression:
+
+```{r}
+mod_2 <- glm(low_income ~ age_group, family = "binomial", data = gss)
+summary(mod_2)
+```
+
+## Questions
+
+- What is the reference category?
+- Interpret the coefficients on age group = 20 and age group = 50. What does this suggest?
+
+# Changing reference category
+
+Now rerun the regression based on the re-leveled age group:
+
+```{r}
+gss <- gss %>% 
+  mutate(age_group = fct_relevel(age_group, "30", after = 0))
+
+mod_3 <- glm(low_income ~ age_group, family = "binomial", data = gss)
+summary(mod_3)
+```
+## Questions
+
+- Interpret the coefficients on age group = 20 and age group = 50. Why do these differ?
+
+# Further exercises
+
+- Rerun the regression above (mod_3) with `educ_cat` as an additional explanatory variable. What is the reference category? Interpret some of the results. 
+- Change the reference category for education to be high school and rerun the above regression. 
