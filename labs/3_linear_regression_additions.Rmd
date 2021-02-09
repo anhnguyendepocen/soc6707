@@ -1,0 +1,480 @@
+---
+title: 'Week 3: Linear regression'
+author: "Monica Alexander"
+date: "26/01/2021"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# By the end of this lab you should know 
+
+- How to use `lm` to get estimated coefficients and $R^2$
+- How to calculate an estimated outcome (Y) based on a particular value of an independent variable (X) and estimated regression coefficients
+- How to plot a fitted SLR line on a scatter plot
+- How to extract fitted values and residuals from `lm` object
+- How to extract coefficient and standard error estimates from `lm` summary object
+- How to find critical t values
+- How to calculate confidence intervals
+
+
+# Read in, prepare, plot the data
+
+We will be using the country indicators dataset again, and exploring the relationship between the total fertility rate (TFR) and child mortality in 2017. 
+
+NOTE: If you are having trouble with the here package, I suggest not using it and just putting in the entire file path.
+
+```{r}
+library(tidyverse)
+library(here)
+country_ind <- read_csv(here("data/country_indicators.csv"))
+
+# NOTE if you are having trouble with the 'here' package
+# don't use it and just type in the whole file path. 
+# E.g. Monica's would be
+# country_ind <- read_csv("~/src/soc252/data/country_indicators.csv")
+```
+
+
+## Filter to just be 2017
+
+```{r}
+country_ind_2017 <- country_ind %>% filter(year==2017)
+```
+
+## Look at the observed relationship between TFR and child mortality
+
+```{r}
+ggplot(country_ind_2017, aes(tfr, child_mort)) + 
+  geom_point() + 
+  ylab("Child mortality") + 
+  xlab("TFR") + 
+  ggtitle("Child mortality versus TFR, 2017")
+```
+
+## Question
+
+Alter the code above to make a plot title and make the X and Y axes more readable. 
+
+# Estimating SLR using `lm`
+
+We don't have to calculate the regression coefficients or $R^2$ 'by hand', we can just use the `lm` function. ('lm' stands for 'linear models').
+
+The main arguments are
+
+- The formula, which is written in the form `y~x` 
+- The data frame that contains the variables 
+
+Fit our SLR:
+
+- Y = child mortality
+- X = TFR
+
+```{r}
+childmort_tfr_model <- lm(formula = child_mort~tfr, # formula, so this tells lm what our model is
+                          data = country_ind_2017) # where the data come from
+```
+
+Print out the summary:
+
+```{r}
+summary(childmort_tfr_model)
+```
+BAD PRACTICE: 
+
+- losing accuracy
+- prone to human error
+- not reproducible, and doesn't automatically update
+
+```{r}
+b1_hat <- 20.3581
+```
+
+```{r}
+gss <- read_csv(here("data/gss.csv"))
+
+# FIND the proportion of people who have non-missing age_first_child
+
+# total number of respondents
+
+n <- nrow(gss)
+n
+
+# the number of non-missing values
+
+n_non_missing <- gss %>% select(age_first_child) %>% 
+  summarise(sum(!is.na(age_first_child))) %>% 
+  pull()
+
+n_non_missing
+
+
+# proportion
+
+n_non_missing/n #fine, this is good
+
+prop <- n_non_missing/n
+
+
+# OR
+
+13767/20602 # bad practice
+
+
+```
+
+
+
+
+## Extract results
+
+To extract coefficients from the model output, use the `coef()` function
+
+```{r}
+coef(childmort_tfr_model)
+```
+
+Can assign these to variables by indexing the relevant number:
+
+```{r}
+beta_0 <- coef(childmort_tfr_model)[1] # the [1] means get the first item
+beta_1 <- coef(childmort_tfr_model)[2] 
+
+beta_0
+```
+
+To extract the value of $R^2$, use
+
+```{r}
+summary(childmort_tfr_model)[["r.squared"]]
+```
+
+Use `names()` function to see what values are within an object
+
+```{r}
+names(summary(childmort_tfr_model))
+```
+
+
+
+## Question
+
+What is the estimated child mortality for a country with a TFR of 5?
+
+$Y = \beta_0 + \beta_1X$
+
+- $X$ = TFR
+- $Y$ = child mortality
+
+Based on our estimation, what is $\hat{Y}$ when $X = 5$?
+
+Need: estimates of beta_0 and beta_1
+
+
+```{r}
+beta_0
+beta_1
+x <- 5
+
+beta_0+beta_1*x
+
+```
+
+
+
+
+# Plotting the fitted line on a scatter plot
+
+To visualize our fitted line we can add to our plot from before using `geom_abline`
+
+```{r}
+ggplot(country_ind_2017, aes(tfr, child_mort)) + 
+  geom_point() + 
+  geom_abline(intercept = beta_0, slope = beta_1, color = "red") # adds a line with a specified intercept and slope
+```
+
+
+# Extract fitted values and residuals
+
+To extract the fitted values of child mortality:
+
+```{r}
+Yhat <- fitted(childmort_tfr_model)
+Yhat
+
+```
+
+To extract the residuals:
+
+ehat = Y - Yhat
+
+```{r}
+ehat <- resid(childmort_tfr_model)
+ehat
+```
+
+## Questions
+
+- Calculate Ybar (i.e. the mean of `life expectancy`)
+- Hence calculate SSM
+- Calculate SSR
+- Hence calculate SST and $R^2$
+
+
+```{r}
+summary(childmort_tfr_model)[["r.squared"]]
+```
+
+```{r}
+Ybar <- country_ind_2017 %>% 
+  summarise(mean(child_mort)) %>% 
+  pull() # pulls out the value to just be one number 
+
+Ybar
+```
+SSM : sum of the fitted values - mean all squared
+
+```{r}
+SSM <- sum((Yhat - Ybar)^2)
+
+SSM
+
+```
+
+SSR: sum of observed - fitted all squared
+
+```{r}
+# pull out our "Y" values (which are observed child mortality)
+
+Y <- country_ind_2017 %>% 
+  select(child_mort) %>% 
+  pull() # pulls out our set of values
+
+Y
+
+SSR <- sum((Y - Yhat)^2)
+SSR
+```
+
+
+SST = SSM + SSR
+R^2 = SSM/SST
+
+```{r}
+SST <- SSM + SSR
+SST
+
+SSM/SST
+
+```
+
+
+# Extracting standard errors of coefficients
+
+Easiest to do based on extracting info out of the `summary` object. To look at everything that's contained in the summary object use `names`
+
+```{r}
+summary_mod <- summary(childmort_tfr_model)
+
+names(summary_mod)
+```
+
+We want to look at coefficients. We use the dollar sign `$` notation here to extract a particular piece of the model object. 
+
+```{r}
+summary_mod[["coefficients"]]
+
+#OR
+
+summary_mod$coefficients
+```
+
+Notice this is a matrix with 2 rows and 4 columns. To get $\hat{\beta}_1$, it's the 2nd row and 1st column:
+
+```{r}
+b1_hat <- summary_mod$coefficients[2,1]
+b1_hat
+```
+
+To get the standard error, it's the 2nd row and 2nd column:
+
+```{r}
+se_b1_hat <- summary_mod$coefficients[2,2]
+se_b1_hat
+```
+
+# Calculate confidence interval
+
+We will calculate a 95% confidence interval i.e. $\alpha = 0.05$.
+
+First, to get the critical value, we use the `qt` function
+
+```{r}
+alpha <- 0.05 # define our alpha (type 1 error rate)
+n <- nrow(country_ind_2017) # number of observations
+df <- n-2 # degrees of freedom (n - (k+1))
+
+# take absolute value to ensure it's positive
+# p = alpha/2 because two sided 
+t_alpha <- abs(qt(p = alpha/2, df = df))
+t_alpha
+```
+
+The formula for the confidence interval is 
+$$\hat{\beta}_{1} \pm\left(t_{\alpha} \times s e\left(\hat{\beta}_{1}\right)\right)$$
+
+Where the symbol $\pm$ means you do both plus and minus to get two different values, which forms the lower and upper bound of your confidence interval
+
+## Questions
+- Calculate the 95% confidence interval for $\hat{\beta}_{1}$
+- Interpret this confidence interval
+
+
+```{r}
+# lower bound 
+
+b1_hat - t_alpha*se_b1_hat
+
+# upper bound 
+
+b1_hat + t_alpha*se_b1_hat
+
+b1_hat
+
+```
+
+Estimate for beta1_hat = 20.36 (95% CI: [18.66, 22.05]). Interpretation: if we could get repeated samples of child mortality and TFR over and over, and calculated the confidence interval for each sample, the 95% of those intervals would contain the true value of beta1_hat. 
+
+
+
+# Multiple linear regression
+
+Running MLR in R is an easy extension of SLR. Here are some practice questions using the `lego_towers` dataset. This dataset shows observations of the time (in seconds) it took my toddler to build a lego tower, the number of blocks given to him, and the number of other distractions present. 
+
+Reading in the data:
+
+```{r}
+lego <- read_csv(here("data/lego_towers.csv"))
+lego
+```
+## Questions
+
+1. Make a scatter plot of time versus blocks
+
+```{r}
+ggplot(data = lego, aes(x = blocks, y = time)) + 
+  geom_point()
+```
+
+
+2. Make a scatter plot of time versus distractions
+
+```{r}
+ggplot(data = lego, aes(x = distractions, y = time)) + 
+  geom_point()
+```
+
+
+
+3. Based on 1 and 2, what do you expect the magnitude and sign (direction) of $\hat{\beta_1}$ and $\hat{\beta_2}$ to be?
+
+X1 = blocks
+X2 = distractions
+Y  = time
+
+- beta1_hat, beta2_hat both positive
+- expect beta1_hat (blocks) to have higher magnitude
+
+4. Fit the above model using `lm`
+
+```{r}
+lego_mod <- lm(time~blocks+distractions, data = lego)
+summary(lego_mod)
+```
+
+
+5. Interpret $\hat{\beta_1}$ and $\hat{\beta_2}$
+
+- beta1: for every additional block, the time taken to build the tower increases by 4.7 seconds, holding distractions constant. 
+- beta2: for every additional distraction, the time taken to buld the tower increases by 1.1 seconds, holding the number of blocks constant. 
+
+
+6. Using `mutate` create a new variable called `blocks_3` which is the number of blocks minus 3
+
+```{r}
+lego <- lego %>% 
+  mutate(blocks_3 = blocks - 3)
+
+lego
+
+```
+
+
+7. Refit the model using `lm` where $X_{i1}$ is now `blocks_3`
+
+```{r}
+lego_mod_2 <- lm(time~blocks_3+distractions, data = lego)
+summary(lego_mod_2)
+```
+
+Notice
+
+- beta1hat and beta2hat have not changed
+- Intercept value has changed. 
+
+
+
+8. Interpret $\hat{\beta_0}$
+
+Beta0hat: time taken to build a tower when `blocks_3` and distractions is 0. 
+When `blocks_3` = 0, blocks = 3. 
+
+More helpful interpretation: with 3 blocks and no distractions, the average time to build a tower is 5.8 seconds. 
+
+
+
+REMOVE STUFF:
+
+- remove one variable: use `rm()`
+
+
+```{r}
+rm(beta_0)
+
+beta_0
+```
+
+- Want to get rid of everything in your environment:
+    + save your work and restart RStudio
+    + broom button top RH corner
+
+
+
+life expectancy and tfr over time
+
+```{r}
+country_ind_subset <- country_ind %>% 
+  filter(country=="Australia"|country == "Kenya")
+
+ggplot(data = country_ind_subset, aes(x = tfr, y = life_expectancy, color = year)) + 
+  geom_point() + 
+  facet_wrap(~country)
+
+country_ind_subset <- country_ind_subset %>% 
+  mutate(ratio = life_expectancy/tfr)
+
+ggplot(country_ind_subset, aes(year, ratio, color = country)) + 
+  geom_line() + 
+  geom_point()
+```
+
+
+
+
+
+
+
+
