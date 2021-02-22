@@ -170,27 +170,70 @@ Note: for readability, I suggest:
 - changing the y-axis scale to be density, not frequency; and using `position = dodge` so that the bars are shown next to each other (e.g. `geom_histogram(aes(y = ..density..), position = 'dodge')`)
 - changing the x-axis so it displays on the log scale, i.e. `scale_x_log10()`
 
+```{r}
+airbnb <- read_csv(here("data/airbnb.csv"))
+airbnb %>% 
+  ggplot(aes(price, fill = room_type)) + 
+  geom_histogram(aes(y = ..density..), position = 'dodge') + scale_x_log10()
+```
+
+
 ## b) 
 
 Create a boxplot of price by whether or not the host is a superhost. Interpret the graph descriptively. 
+
+```{r}
+airbnb %>% 
+  ggplot(aes(host_is_superhost, price, fill = host_is_superhost)) + geom_boxplot() + 
+  scale_y_log10()
+```
+
 
 ## c) 
 
 Calculate the correlation of price and overall rating (`review_scores_rating`) separately by room type. Interpret your results. 
 
+```{r}
+airbnb %>% 
+  summarise(cor(price, review_scores_rating))
+```
+
+
 ## d) 
 
 i) Run a simple linear regression of price versus overall rating. Interpret the coefficient and significance on `review_scores_rating`.
+
+```{r}
+summary(lm(price ~ review_scores_rating, data = airbnb))
+```
+
+
 ii) Run a simple linear regression of log(price) versus log(overall rating). Interpret the coefficient and significance of `log(review_scores_rating)`.
+
+```{r}
+summary(lm(log(price) ~ log(review_scores_rating), data = airbnb))
+```
+
 
 ## e)
 
 Run a multiple linear regression of log(price) with covariates `room_type`, `log(review_scores_rating)` and `host_is_superhost`. 
 Interpret the coefficients and significance 
 
+```{r}
+mod <- lm(log(price) ~ room_type+log(review_scores_rating)+host_is_superhost, data = airbnb)
+summary(mod)
+```
+
+
 ## f)
 
 Compute a correlation coefficient between the model residuals from e) and `log(review_scores_rating)`. Interpret the results.
+
+```{r}
+cor(airbnb$review_scores_rating, resid(mod))
+```
+
 
 
 # Research project
