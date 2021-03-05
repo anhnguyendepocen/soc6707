@@ -48,6 +48,12 @@ mod_5 <- glm(low_income~age_group+educ_cat, data = gss, family = "binomial")
 - But EDA due next week
 - Data exploration and write up based on your research question and data set
 
+Outlook:
+
+- Bayesian probability and inference
+- Multilevel models
+
+
 ## Correction from lab
 
 \tiny

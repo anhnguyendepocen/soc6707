@@ -120,6 +120,7 @@ d <- d %>%
 infant <- d %>% select(race, mom_age, gest, preterm, cod_group)
 infant
 ```
+
 Graph by race from lecture:
 
 ```{r}
