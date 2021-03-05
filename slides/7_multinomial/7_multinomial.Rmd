@@ -1,0 +1,458 @@
+---
+title: "SOC6707 Intermediate Data Analysis"
+author: "Monica Alexander"
+date: "Week 7: Interactions, Polytomous outcomes"
+output: 
+  beamer_presentation:
+    slide_level: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, size = '\tiny')
+```
+
+```{r}
+library(tidyverse)
+library(here)
+country_ind <- read_csv(here("data/country_indicators.csv"))
+
+# from lab
+gss <- read_csv(here("data/gss.csv"))
+gss <- gss %>% 
+  mutate(low_income = ifelse(income_respondent=="Less than $25,000", 1, 0))
+age_groups <- seq(10, 80, by = 10)
+
+gss$age_group <- as.character(cut(gss$age, 
+                   breaks= c(age_groups, Inf), 
+                   labels = age_groups, 
+                   right = FALSE))
+gss <- gss %>% 
+  mutate(age_group = fct_relevel(age_group, "30", after = 0))
+gss <- gss %>% 
+  mutate(educ_cat = fct_relevel(educ_cat, "high school", after=0))
+
+mod_5 <- glm(low_income~age_group+educ_cat, data = gss, family = "binomial")
+```
+
+
+
+## Overview
+
+- Correction
+- Interaction terms
+- Polytomous outcomes
+
+## Notes
+
+- No Assignment 2
+- But EDA due next week
+- Data exploration and write up based on your research question and data set
+
+## Correction from lab
+
+\tiny
+```{r}
+summary(mod_5)
+```
+
+## Correction
+
+- I incorrectly said the reference category was related to both education and age
+- Interpretation for education: "odds of low income is XX compared to high school, holding age constant"
+- Interpretation for age: "odds of low income is XX compared to 30-40 year olds, holding education constant"
+- I was thinking we had an interaction term. What is an interaction term?
+
+# Interaction terms
+
+## Effect moderation
+
+-  Effect moderation refers to the situation where the partial effect of one explanatory variable differs or changes across levels of another explanatory variable
+    + e.g. the association between income and age may vary by education level
+- All of the models we have considered thus far constrain the partial effects of the explanatory variables to be invariant, but this may not be appropriate
+- If a model constrains partial effects to be invariant when in fact they are not, the estimator is biased for the CEF (our estimates are wrong)
+
+We can accommodate effect moderation through the use of **interaction terms**
+
+## Interaction terms
+
+Example of an MLR model with an interaction term:
+
+$$
+\begin{aligned}
+Y_{i} &=E\left(Y_{i} \mid X_{i 1}, X_{i 2}\right)+\varepsilon_{i} \\
+&=\beta_{0}+\beta_{1} X_{i 1}+\beta_{2} X_{i 2}+\beta_{3} X_{i 1} X_{i 2}
+\end{aligned}
+$$
+
+- How should we interpret the parameters in an MLR model with interaction terms?
+- First, let's take a look at how $E\left(Y_{i} \mid X_{i 1}, X_{i 2}\right)$ changes with a unit increase in $X_{i1}$
+
+## Interaction terms
+$$
+E\left(Y_{i} \mid X_{i 1}, X_{i 2}\right)=\beta_{0}+\beta_{1} X_{i 1}+\beta_{2} X_{i 2}+\beta_{3} X_{i 1} X_{i 2}
+$$
+In this model, the change in the expected value of $Y_i$ associated with a unit increase in $X_{i1}$ is given by
+$$
+E\left(Y_{i} \mid X_{i 1}=x_{1}+1, X_{i 2}=x_{2}\right)-E\left(Y_{i} \mid X_{i 1}=x_{1}, X_{i 2}=x_{2}\right)=\beta_{1}+\beta_{3} x_{2}
+$$
+
+- The partial effect of $X_{i1}$ now depends on the value to which we set the other explanatory variable, $X_{i2}$
+- Note that when $X_{i2}=0$, this expression simplifies to $\beta_1$, or in other words, $\beta_1$ is the change in the expected value of $Y_i$ associated with a unit increase in $X_{i1}$ specifically when $X_{i2}=0$
+
+
+## Interaction terms
+
+Next, let’s take a look at how the partial effect of $X_{i 1}, \beta_{1}+\beta_{3} x_{2}$, changes with a unit increase in $X_{i2}$ 
+
+The change in the partial effect of $X_{i 1}$ associated with a unit increase in $X_{i2}$ is given by
+$$
+\begin{array}{l}
+{\left[E\left(Y_{i} \mid X_{i 1}=x_{1}+1, X_{i 2}=x_{2}+1\right)-E\left(Y_{i} \mid X_{i 1}=x_{1}, X_{i 2}=x_{2}+1\right)\right]} \\
+-\left[E\left(Y_{i} \mid X_{i 1}=x_{1}+1, X_{i 2}=x_{2}\right)-E\left(Y_{i} \mid X_{i 1}=x_{1}, X_{i 2}=x_{2}\right)\right]=\beta_{3}
+\end{array}
+$$
+In words, $\beta_3$ represents the amount by which the partial effect of $X_{i 1}$ differs across levels of the other explanatory variable, $X_{i2}$ 
+
+## Interaction terms
+
+- The previous slides may take a little getting used to 
+- In reality, one of our explanatory variables (say $X_{i2}$) is a binary variable (so either 0 or 1)
+- This simplifies the interpretation of the interaction term 
+
+## Example
+
+- What is the association between TFR, life expectancy and region?
+- Does the association between TFR and life expectancy differ based on whether country is in Developed Regions or not?
+
+## Example in R
+
+\tiny
+```{r, echo = TRUE}
+country_ind_2017 <- country_ind %>% 
+  filter(year==2017) %>% 
+  mutate(dev_region = ifelse(region=="Developed regions", "yes", "no"))
+
+summary(lm(tfr ~ life_expectancy + dev_region + life_expectancy*dev_region, data = country_ind_2017))
+```
+## Example
+
+$$
+Y_i = 13.5 - 0.14X_1 - 13.0 X_2 + 0.16X_1X_2
+$$
+
+Some interpretations
+
+- for non-developed regions, 1 year increase in life expectancy associated with 0.14 decrease in TFR
+- for developed regions, a 1 year increase in life expectancy associated with a 0.02 increase in TFR
+
+
+## Visualizing interactions 
+
+```{r}
+ggplot(aes(life_expectancy, tfr, color = dev_region), data = country_ind_2017) + 
+  geom_point() + geom_smooth(method = "lm") + 
+  ggtitle("TFR versus life expectancy, by region") + 
+  ylab("TFR") + xlab("Life expectancy") + 
+  scale_color_brewer(name = "Developed region", palette = "Set1")
+```
+
+
+## Back to example from lab
+
+Let's run a simplified version
+
+\tiny
+```{r, echo = TRUE}
+gss <- gss %>% 
+  mutate(age_over_30 = ifelse(age>30, "Yes", "No"))
+mod_6 <- glm(low_income~ age_over_30 + has_bachelor_or_higher, data = gss, family = "binomial")
+summary(mod_6)
+```
+
+## Interpretation
+
+\tiny
+```{r, echo = TRUE}
+exp(coef(mod_6))
+```
+
+
+\normalsize
+- Odds of low income for 30+ year olds is 72% less than <30, holding education constant
+- Odds of low income for those with at least a bachelor is 64% less than those without, holding age constant
+
+## Now add an interaction
+
+\tiny
+```{r, echo = TRUE}
+mod_7 <- glm(low_income~ age_over_30 + has_bachelor_or_higher+ age_over_30:has_bachelor_or_higher, data = gss, family = "binomial")
+summary(mod_7)
+```
+## Interpretation
+
+\tiny
+```{r, echo = TRUE}
+coef(mod_7)
+```
+
+\footnotesize
+- For people without a bachelor, odds of low income for 30+ is (1- exp(-1.3) )x 100 % = 73% less than for <30 year olds
+- For people with a bachelor, odds of low income for 30+ is (1- exp(-1.3+0.16) )x 100 % = 70% less than for <30 year olds
+- For <30 year olds, odds of low income for bachelor is (1- exp(-1.15) )x 100 % = 69% less than for <bachelor
+- For 30+ year olds, odds of low income for bachelor is (1- exp(-1.15 + 0.16) )x 100 % = 63% less than for <bachelor
+- ... but interaction term isn't significant
+
+# Polytomous outcomes
+
+## Polytomous outcomes
+
+- So far we have only considered continuous and binary response variables, but what if we are interested in modeling a polytomous response variable as a function of continuous and/or categorical explanatory variables?
+- A polytomous response variable is a variable that takes on one of $j>2$ possible values representing membership in one of $j>2$ different groups or categories. Examples:
+    + Self-reported health
+    + Voted Liberal, Conservative, NDP, Greens
+    + Cause of death
+- Polytomous response variables can be ordered or not, and can be modeled in several different ways
+- Here I will focus on **multinomial logistic regression**, which is for unordered outcomes
+
+## Multinomial response
+
+- A multinomial variable is a particular type of polytomous variable where the $j>2$ different groups or categories are not ordered
+- Example: cause of infant death in the US. Here's what the dataset looks like:
+
+
+```{r}
+d <- read_rds(here("data", "infant.RDS"))
+d <- d %>% 
+  mutate(neo_death = ifelse(aged<=28, 1, 0),
+         cod_group = case_when(
+           str_starts(cod, "peri") ~ "perinatal",
+           cod %in% c("other", "unknown") ~ "other/unknown",
+           cod %in% c("sids", "maltreatment", "infection") ~ "exogenous",
+           cod %in% c("resp", "heart") ~ "respiratory/heart",
+           TRUE ~ "congenital malformations"
+         ),
+         preterm = ifelse(gest<37, 1, 0)) %>% 
+  filter(gest<99, !is.na(mom_age_group))
+infant <- d %>% select(race, mom_age, gest, preterm, cod_group)
+head(infant) %>% kableExtra::kable()
+```
+
+## Cause of infant death
+
+```{r}
+infant %>% 
+  group_by(race, cod_group) %>%
+  tally() %>% 
+  group_by(race) %>% 
+  mutate(prop = n/sum(n)) %>%
+  mutate(cod_group = fct_reorder(cod_group, -prop)) %>% 
+  ggplot(aes(cod_group, prop, fill  = race)) + geom_bar(stat = "identity", position = 'dodge') + 
+  labs(title = "Proportion of infant deaths by cause", x = "cause", y = "proportion") + 
+  theme_bw() + 
+  scale_fill_brewer(palette = "Set1")
+```
+
+## Multinomial distribution
+
+- Now $Y_i$ make take one of several discrete values, $1,2,\dots, J$.
+- Now the probability is 
+
+$$
+\pi_{ij} = Pr(Y_i=j)
+$$
+with
+$$
+\sum_j \pi_{ij} = 1
+$$
+
+- Note that this is an extension of the binomial distribution (for binary variables), which is the same thing, just with $J = 2$
+- As such we can model multinomial outcomes in much the same way, using multinomial logistic regression
+
+## Multinomial logistic regression
+
+- Multinomial logistic regression is a model for the conditional probability that a multinomial response variable is equal to $j$ given a set of explanatory variables
+- The MLRM can be expressed as
+
+\footnotesize
+$$
+\log \left(\frac{P\left(Y_{i}=j \mid X_{i 1}, \ldots, X_{i k}\right)}{P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)}\right)=\eta_{j i}=\beta_{j 0}+\beta_{j 1} X_{i 1}+\cdots+\beta_{j k} X_{i k} \quad \text { for } j=1, \ldots, J
+$$
+\normalsize
+where $\log \left(\frac{P\left(Y_{i}=j \mid X_{i 1}, \ldots, X_{i k}\right)}{P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)}\right)$ is known as the "log odds of response
+category 'j' versus response category 1" and $\beta_{jk}$ are a set of unknown parameters subject to the constraint that $\beta_{1k} = 0$ for all $k$.
+
+## Multinomial logistic regression
+
+Because the logit link function is invertible, we can also express the MLRM as an inverse logit function:
+
+
+$$
+\begin{aligned}
+P\left(Y_{i}=j \mid X_{i 1}, \ldots, X_{i k}\right) &=\frac{\exp \left(\eta_{j i}\right)}{\sum_{j} \exp \left(\eta_{j i}\right)} \\
+&=\frac{\exp \left(\beta_{j 0}+\beta_{j 1} X_{i 1}+\cdots+\beta_{j k} X_{i k}\right)}{\sum_{j} \exp \left(\beta_{j 0}+\beta_{j 1} X_{i 1}+\cdots+\beta_{j k} X_{i k}\right)}
+\end{aligned}
+$$
+
+## Multinomial logistic regression
+
+More specifically, we can express the conditional probabilities as follows:
+
+$$
+\begin{array}{c}
+P\left(Y_{i}=1 \mid X_{i 1}, \ldots, X_{i k}\right)=\frac{\exp \left(\eta_{1 i}\right)}{\sum_{j} \exp \left(\eta_{j i}\right)}=\frac{1}{1+\exp \left(\eta_{2 i}\right)+\cdots+\exp \left(\eta_{J i}\right)} \\
+P\left(Y_{i}=2 \mid X_{i 1}, \ldots, X_{i k}\right)=\frac{\exp \left(\eta_{2 i}\right)}{\sum_{j} \exp \left(\eta_{j i}\right)}=\frac{\exp \left(\eta_{2 i}\right)}{1+\exp \left(\eta_{2 i}\right)+\cdots+\exp \left(\eta_{J i}\right)} \\
+\quad \vdots \\
+P\left(Y_{i}=J \mid X_{i 1}, \ldots, X_{i k}\right)=\frac{\exp \left(\eta_{J i}\right)}{\sum_{j} \exp \left(\eta_{j i}\right)}=\frac{\exp \left(\eta_{J i}\right)}{1+\exp \left(\eta_{2 i}\right)+\cdots+\exp \left(\eta_{J i}\right)}
+\end{array}
+$$
+
+## Interpretation
+
+What is the parameter $\beta_{j1}$ for $j>1$?
+
+\footnotesize
+$$
+\begin{array}{l}
+\log \left(\frac{P\left(Y_{i}=j \mid X_{i 1}=x_{1}^{*}+1, X_{i 2}=x_{2}^{*}, \ldots, X_{i k}=x_{k}^{*}\right)}{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}+1, X_{i 2}=x_{2}^{*}, \ldots, X_{i k}=x_{k}^{*}\right)}\right)-\log \left(\frac{P\left(Y_{i}=j \mid X_{i 1}=x_{1}^{*}, X_{i 2}=x_{2}^{*}, \ldots, X_{i k}=x_{k}^{*}\right)}{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}, X_{i 2}=x_{2}^{*}, \ldots, X_{i k}=x_{k}^{*}\right)}\right) \\
+\quad=\left(\beta_{j 0}+\beta_{j 1}\left(x_{1}^{*}+1\right)+\beta_{j 2} x_{2}^{*}+\cdots+\beta_{j k} x_{k}^{*}\right)-\left(\beta_{j 0}+\beta_{j 1} x_{1}^{*}+\beta_{j 2} x_{2}^{*}+\cdots+\beta_{j k} x_{k}^{*}\right) \\
+\quad=\beta_{j 1} \\
+\quad=\log \left(\frac{P\left(Y_{i}=j \mid X_{i 1}=x_{1}^{*}+1, X_{i 2}=x_{2}^{*}, \ldots, X_{i k}=x_{k}^{*}\right)}{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}+1, X_{i 2}=x_{2}^{*}, \ldots, X_{i k}=x_{k}^{*}\right)} / \frac{P\left(Y_{i}=j \mid X_{i 1}=x_{1}^{*}, X_{i 2}=x_{2}^{*}, \ldots, X_{i k}=x_{k}^{*}\right)}{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}, X_{i 2}=x_{2}^{*}, \ldots, X_{i k}=x_{k}^{*}\right)}\right)
+\end{array}
+$$
+
+\normalsize
+$\beta_{j1}$ is a log odds ratio that gives the change in the log odds that $Y_i$ is equal to $j$ rather than 1 associated with a unit increase in $X_{i1}$, holding other explanatory variables constant.
+
+## Interpretation
+
+What is $\exp(\beta_{j1})$?
+
+\footnotesize
+
+$$
+\begin{aligned}
+\exp \left(\beta_{j 1}\right) &=\exp \left(\log \left(\frac{P\left(Y_{i}=j \mid X_{i 1}=x_{1}^{*}+1,\ldots\right)}{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}+1, \ldots\right)} / \frac{P\left(Y_{i}=j \mid X_{i 1}=x_{1}^{*}, \ldots, \right)}{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*},  \ldots \right)}\right)\right) \\
+&=\frac{P\left(Y_{i}=j \mid X_{i 1}=x_{1}^{*}+1, \ldots\right)}{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}+1, \ldots \right)} / \frac{P\left(Y_{i}=j \mid X_{i 1}=x_{1}^{*},  \ldots\right)}{P\left(Y_{i}=1 \mid X_{i 1}=x_{1}^{*}, \ldots\right)}
+\end{aligned}
+$$
+
+\normalsize
+$\exp(\beta_{j1})$ is the odds ratio that gives the multiplicative change in the odds that $Y_i$ is equal to $j$ rather than 1 associated with a unit increase in $X_{i1}$, holding other explanatory variables constant.
+
+## Comparing other response categories
+
+The preceding calculations concerned the contrast between response category $j$ and the baseline category 1, but they are easily extended to contrasts between any two categories $j$ and $j'$
+
+Specifically, the log odds ratio that $Y_i$ is equal to $j$ rather than $j'$ associated with a unit increase in $X_{ik}$, holding other variables constant, is
+
+\footnotesize
+$$
+\log \left(\frac{P\left(Y_{i}=j \mid X_{i 1}=x_{1}^{*}+1 \ldots \right)}{P\left(Y_{i}=j^{\prime} \mid X_{i 1}=x_{1}^{*}+1,   \ldots \right)} / \frac{P\left(Y_{i}=j \mid X_{i 1}=x_{1}^{*},   \ldots \right)}{P\left(Y_{i}=j^{\prime} \mid X_{i 1}=x_{1}^{*},   \ldots \right)}\right)=\beta_{j k}-\beta_{j^{\prime} k}
+$$
+
+and the corresponding odds ratio is
+
+$$
+\frac{P\left(Y_{i}=j \mid X_{i 1}=x_{1}^{*}+1,   \ldots \right)}{P\left(Y_{i}=j^{\prime} \mid X_{i 1}=x_{1}^{*}+1,   \ldots \right)} / \frac{P\left(Y_{i}=j \mid X_{i 1}=x_{1}^{*},   \ldots \right)}{P\left(Y_{i}=j^{\prime} \mid X_{i 1}=x_{1}^{*},   \ldots \right)}=\exp \left(\beta_{j k}-\beta_{j^{\prime} k}\right)
+$$
+
+## Example
+First step: get data in wide format
+
+\tiny
+```{r, echo = TRUE}
+infant_wide <- infant %>% 
+  group_by(race, mom_age, gest, preterm, cod_group) %>% 
+  tally(name = "deaths") %>% 
+  pivot_wider(names_from = cod_group, values_from = deaths) %>% 
+  mutate_all(.funs = funs(ifelse(is.na(.), 0, .)))
+head(infant_wide)
+```
+
+## Example
+
+Create outcome $Y$ which is a vector of cause-specific deaths
+
+\tiny
+```{r, echo=TRUE}
+infant_wide$Y <- as.matrix(infant_wide[,c("perinatal",
+                                          "exogenous",
+                                          "congenital malformations", 
+                                          "respiratory/heart", "other/unknown")])
+head(infant_wide$Y)
+```
+
+## Example
+
+\tiny
+```{r, echo=TRUE}
+library(nnet)
+mod_mn <- multinom(Y ~ race+ mom_age+ preterm, data = infant_wide)
+summary(mod_mn)
+```
+## Some interpretations
+
+\tiny
+```{r, echo = TRUE}
+coef(mod_mn)
+exp(coef(mod_mn))
+```
+
+\normalsize
+- The odds of exogenous causes compared to perinatal causes for NHW babies is 9% more than NHB babies, holding everything else constant
+- The odds of respiratory/heart causes compared to perinatal causes for preterm babies is 90% less than for non-preterm babies, holding everything else constant
+- The odds of respiratory/heart causes compared to congenital malformations for preterm babies is $\exp(-2.25 + 2.42) = 1.18$ times (or 18% more) than for non-preterm babies, holding everything else constant
+
+## Predicted probabilities
+
+For mothers of age 30
+
+\tiny
+```{r, echo = TRUE}
+predict_df <- tibble(race = rep(c("NHW", "NHB"), each = 2),
+       mom_age = 30,
+       preterm = rep(c(0,1),2)) 
+preds <- bind_cols(predict_df, as_tibble(predict(mod_mn, newdata = predict_df, type = 'probs')))
+preds
+```
+
+## Predicted probabilities
+
+```{r}
+preds %>% 
+  pivot_longer(`perinatal`:`other/unknown`, names_to = "cod_group", values_to = "probability") %>% 
+  mutate(preterm = ifelse(preterm==1, "pre-term", "full-term")) %>% 
+  ggplot(aes(race, probability, fill = cod_group)) + 
+  geom_bar(stat = "identity")+
+  facet_grid(~preterm) +
+  ggtitle("Predicted probabilities of infant death by race, prematurity and cause\nMothers aged 30")
+```
+
+## Summary
+
+- Multinomial logistic regression is a natural extension of binomial logistic regression (what we saw in week 5)
+- Useful when you have categorical outcomes with more than 2 categories
+- If the categories are ordered, it's also possible to do **ordered logistic regression**
+- Not talked about today, but happy to chat offline if useful for research projects
+
+## A few words on generalized linear models
+
+- So far we've seen linear regression (continuous), logistic regression (binary), and multinomial regression (categorical)
+- Notice that all models are of the form 
+
+$$
+g(E(Y_i)) = \beta_0 + \beta_1X_{i1} + \dots + \beta_kX_{ik}
+$$
+where $g(.)$ is some function.
+
+- For linear regression $g(.)$ is the identity
+- For logistic regression $g(.)$ is the logit function
+- For multinomial regression $g(.)$ is the log of the ratios of probabilities 
+
+## Generalized linear models
+
+- These are all special cases of generalized linear models (GLM)
+- With the appropriate link function $g(.)$, a whole range of variables can be modeled in a linear framework
+- We've looked at outcome variables with Normal, Binomial and Multinomial distributions
+- But variables from any exponential distribution (a special family of distributions) can be modeled using GLMs
+- Other common examples include Poisson, Gamma, and Negative Binomial regression
