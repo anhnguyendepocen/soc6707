@@ -1,0 +1,357 @@
+---
+title: 'Week 7: Interactions and Multinomial regression'
+author: "Monica Alexander"
+date: "04/03/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Overview
+
+We are going to go through two of the models mentioned in the lecture. 
+
+Packages:
+
+```{r}
+library(tidyverse)
+library(here)
+library(nnet) # for multinomial
+```
+
+
+# Interactions
+
+Using the country indicators dataset again.
+
+```{r}
+country_ind <- read_csv(here("data/country_indicators.csv"))
+```
+
+Question of interest: in 2017, how is TFR associated with life expectancy and whether or not a country is in a developed region?
+
+Filter the data and create and indicator variable:
+
+```{r}
+country_ind_2017 <- country_ind %>% 
+  filter(year==2017) %>% # filter to just have 2017 
+  mutate(dev_region = ifelse(region=="Developed regions", "yes", "no")) # create a binary variable that indicates whether or not a country is in developed region
+
+country_ind_2017
+```
+
+Run a model with interaction:
+
+```{r}
+mod <- lm(tfr ~ life_expectancy + dev_region + life_expectancy*dev_region, data = country_ind_2017)
+summary(mod)
+```
+
+## Visualizing interactions
+
+DON'T DO IT THIS WAY:
+
+Grab coefficients:
+
+```{r}
+intercept_non_dev <- coef(mod)[[1]]
+slope_non_dev <- coef(mod)[[2]]
+intercept_dev <- intercept_non_dev+ coef(mod)[[3]]
+slope_dev <- slope_non_dev+ coef(mod)[[4]]
+```
+
+Also need min and max life expectancies by region
+
+```{r}
+min_max <- country_ind_2017 %>% 
+  group_by(dev_region) %>% 
+  summarize(min = min(life_expectancy), max = max(life_expectancy))
+min_max
+```
+
+
+Plot:
+```{r}
+ggplot(aes(life_expectancy, tfr, color = dev_region), data = country_ind_2017) + 
+  geom_point() + 
+  ggtitle("TFR versus life expectancy, by region") + 
+  ylab("TFR") + xlab("Life expectancy") + 
+  scale_color_brewer(name = "Developed region", palette = "Set1")+
+  geom_segment(aes(x = min_max$min[1], xend = min_max$max[1],
+                   y = intercept_non_dev+ slope_non_dev*min_max$min[1], 
+                   yend = intercept_non_dev+ slope_non_dev*min_max$max[1])) +
+  geom_segment(aes(x = min_max$min[2], xend = min_max$max[2],
+                   y = intercept_dev+ slope_dev*min_max$min[2], 
+                   yend = intercept_dev+ slope_dev*min_max$max[2]), color = "blue")
+```
+
+
+DO IT THIS WAY: geom_smooth()
+
+A quicker way:
+
+```{r}
+ggplot(aes(life_expectancy, tfr, color = dev_region), data = country_ind_2017) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + # fit line of best using linear regression
+  ggtitle("TFR versus life expectancy, by region") + 
+  ylab("TFR") + xlab("Life expectancy") + 
+  scale_color_brewer(name = "Developed region", palette = "Set1")
+```
+Let's compare this to a model with no interaction effects.
+
+```{r}
+mod2 <- lm(tfr~life_expectancy+dev_region, data = country_ind_2017)
+summary(mod2)
+```
+
+Pulling out the coefficients 
+
+```{r}
+intercept_non_dev <- coef(mod2)[[1]]
+slope <- coef(mod2)[[2]]
+intercept_dev <- intercept_non_dev+ coef(mod2)[[3]]
+```
+
+Plot:
+```{r}
+ggplot(aes(life_expectancy, tfr, color = dev_region), data = country_ind_2017) + 
+  geom_point() + 
+  ggtitle("TFR versus life expectancy, by region") + 
+  ylab("TFR") + xlab("Life expectancy") + 
+  scale_color_brewer(name = "Developed region", palette = "Set1")+
+  geom_segment(aes(x = min_max$min[1], xend = min_max$max[1],
+                   y = intercept_non_dev+ slope*min_max$min[1], 
+                   yend = intercept_non_dev+ slope*min_max$max[1])) +
+  geom_segment(aes(x = min_max$min[2], xend = min_max$max[2],
+                   y = intercept_dev+ slope*min_max$min[2], 
+                   yend = intercept_dev+ slope*min_max$max[2]), color = "blue")
+```
+
+# Multinomial
+
+Question of interest: how does infant mortality cause of death vary by race, mother's age and prematurity?
+
+## Data prep
+
+Read in infant data and do some cleaning:
+
+
+```{r}
+d <- read_rds(here("data/infant.RDS")) # this is an RDS file (not csv): use read_rds NOT read_csv
+
+d <- d %>% 
+  mutate(neo_death = ifelse(aged<=28, 1, 0),
+         cod_group = case_when(
+           str_starts(cod, "peri") ~ "perinatal",
+           cod %in% c("other", "unknown") ~ "other/unknown",
+           cod %in% c("sids", "maltreatment", "infection") ~ "exogenous",
+           cod %in% c("resp", "heart") ~ "respiratory/heart",
+           TRUE ~ "congenital malformations"
+         ),
+         preterm = ifelse(gest<37, 1, 0)) %>% 
+  filter(gest<99, !is.na(mom_age_group)) # removing missing values
+
+infant <- d %>% select(race, mom_age, gest, preterm, cod_group)
+infant
+```
+
+Graph by race from lecture:
+
+
+Get proportions:
+
+```{r}
+# get proportion of deaths by race and cause of death.
+
+prop_by_race <- infant %>% 
+  group_by(race, cod_group) %>% 
+  tally() %>% # counting the number of observations in each race/cause group
+  group_by(race) %>% 
+  mutate(prop = n/sum(n)) %>% # calculate the proportion of observations in each cause group by race
+  mutate(cod_group = fct_reorder(cod_group, -prop)) # plotting purposes: reorder such that the first category has the highest proportion. 
+prop_by_race
+```
+Plotting proportions by race: bar chart
+
+```{r}
+p <- ggplot(data = prop_by_race, 
+            aes(cod_group, prop, fill  = race)) + 
+  geom_bar(stat = "identity", position = 'dodge') + # bar chart
+  labs(title = "Proportion of infant deaths by cause", x = "cause", y = "proportion") + 
+  theme_bw() + 
+  scale_fill_brewer(palette = "Set1")
+p
+```
+Before we run our multinomial regression, we need to make the dataset into a wide format. 
+
+```{r}
+infant
+```
+
+Change the infant dataset:
+
+- Tally up deaths by race/age/prematurity group
+- Switch to wide format so that every cause group has it's own column. 
+
+
+Making into wide format
+
+```{r}
+# count deaths by each group
+infant <- infant %>% 
+  group_by(race, mom_age, gest, preterm, cod_group) %>% 
+  tally(name = "deaths") 
+infant
+
+# make this wide:
+infant_wide <- infant %>% 
+  pivot_wider(names_from = cod_group, values_from = deaths) %>% # pivot wider: makes a dataset wide
+  mutate_all(.funs = funs(ifelse(is.na(.), 0, .)))
+head(infant_wide)
+```
+
+Making the Y variable:
+
+```{r}
+# define our outcome variable Y
+infant_wide$Y <- as.matrix(infant_wide[,c("perinatal",
+                                          "exogenous",
+                                          "congenital malformations", 
+                                          "respiratory/heart", "other/unknown")])
+head(infant_wide$Y)
+```
+
+## Regression
+
+```{r}
+#install.packages("nnet")
+library(nnet)
+mod_mn <- multinom(Y ~ race+ mom_age+ preterm, data = infant_wide)
+summary(mod_mn)
+```
+
+Pull out coefficients:
+
+```{r}
+coef(mod_mn)
+exp(coef(mod_mn))
+```
+
+Pull out standard errors:
+
+```{r}
+names(summary(mod_mn))
+summary(mod_mn)[["standard.errors"]]
+```
+
+
+Exercise: plot coefficient estimates and standard errors.
+
+Tidy up coefficients and standard errors to get a nice data frame that we can plot:
+
+```{r}
+coefs <- as_tibble(coef(mod_mn)) %>% 
+  mutate(cod_group = rownames(coef(mod_mn))) %>% 
+  pivot_longer(-cod_group, names_to = "covariate", values_to = "coefficient") %>% 
+  filter(covariate != "(Intercept)")
+
+
+ses <- as_tibble(summary(mod_mn)[["standard.errors"]]) %>% 
+  mutate(cod_group = rownames(summary(mod_mn)[["standard.errors"]])) %>% 
+  pivot_longer(-cod_group, names_to = "covariate", values_to = "se") %>% 
+  filter(covariate != "(Intercept)")
+
+coef_se <- coefs %>% 
+  left_join(ses)
+
+coef_se
+```
+
+Plot:
+
+```{r}
+ggplot(data = coef_se, aes(cod_group, coefficient, color = covariate))  +
+  geom_point() + 
+  geom_errorbar(aes(ymin = coefficient - 2*se, ymax = coefficient + 2*se), width = NA) + 
+  coord_flip() + 
+  facet_wrap(~covariate, scales = "free_x")+
+  theme(legend.position = "none")
+```
+
+
+
+## Predicted probabilities
+
+
+Set up a dataframe / tibble that has every combination of our covariates that we're interested in. 
+Note: we are calculating predict probabilities for mothers aged 30. 
+Note II: Predicted probabilities across race/prematurity will change based on mothers age.
+
+```{r}
+
+# set up our values that we want to get probabilities for.
+predict_df <- tibble(race = rep(c("NHW", "NHB"), each = 2),
+       mom_age = 30, # fixing mother's age to be 30
+       preterm = rep(c(0,1),2)) 
+
+predict_df
+
+# get predicted probabilities : use predict function
+predicted_probs <- predict(mod_mn, # model object that we want to make predictions from 
+                           newdata = predict_df, # the data that we want to  get predictions for
+                           type = 'probs') # return on probability scale
+
+predicted_probs
+
+
+# tidying up and putting the data and predictions in the one tibble 
+preds <- bind_cols(predict_df, as_tibble(predicted_probs))
+preds
+```
+
+preds is in wide format because every cause has it's own column. 
+To plot, need data in long format 
+
+```{r}
+preds_long <- preds %>% 
+  pivot_longer(`perinatal`:`other/unknown`, 
+               names_to = "cod_group", values_to = "probability") %>% 
+  mutate(preterm = ifelse(preterm==1, "pre-term", "full-term")) 
+
+preds_long
+
+
+ggplot(data = preds_long, 
+       aes(race, probability, fill = cod_group)) + 
+  geom_bar(stat = "identity")+
+  facet_grid(~preterm) +
+  ggtitle("Predicted probabilities of infant death by race, prematurity and cause\nMothers aged 30")
+```
+
+Reorder cause of death:
+
+```{r}
+preds_long <- preds_long %>% 
+  mutate(cod_group = factor(cod_group, 
+                            levels = c("perinatal", "congenital malformations", "exogenous", "respiratory/heart", "other/unknown"))) %>% 
+  mutate(cod_group = fct_rev(cod_group))
+
+
+ggplot(data = preds_long, 
+       aes(race, probability, fill = cod_group)) + 
+  geom_bar(stat = "identity")+
+  facet_grid(~preterm) +
+  ggtitle("Predicted probabilities of infant death by race, prematurity and cause\nMothers aged 30")
+```
+
+
+
+
+
+
+
+
+
