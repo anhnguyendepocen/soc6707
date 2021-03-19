@@ -1,0 +1,154 @@
+---
+title: 'Week 9: Hierarchical Models'
+author: "Monica Alexander"
+date: "19/03/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Packages
+
+```{r}
+library(tidyverse)
+library(lme4)
+```
+
+
+
+# Read in data
+
+Household level:
+
+```{r}
+d <- read.table(url("http://www.stat.columbia.edu/~gelman/arm/examples/radon/srrs2.dat"), header=T, sep=",")
+```
+
+County level: 
+
+```{r}
+cty <- read.table(url("http://www.stat.columbia.edu/~gelman/arm/examples/radon/cty.dat"), header = T, sep = ",")
+cty <- cty %>% mutate(fips = 1000 * stfips + ctfips) %>% dplyr::select(fips, Uppm)
+```
+
+
+Join these together, filter to just be Minnesota and tidy up
+
+```{r}
+d_mn <- d %>% 
+  filter(state=="MN") %>% 
+  mutate(fips = stfips * 1000 + cntyfips) %>% 
+  dplyr::select(fips, county, floor, activity) %>% 
+  left_join(cty) %>% 
+  mutate(log_uran = log(Uppm), log_activity = log(activity)) %>% 
+  mutate(county = str_trim(county)) %>% 
+  filter(county!= "") %>% 
+  filter(!is.na(log_activity), !is.infinite(log_activity))
+```
+
+
+# Models using `lm`
+
+- Fit with no pooling
+- Fit intercept only
+- Fit with floor as covariate
+
+# Models using `lmer`
+
+
+Intercept only
+
+```{r}
+mod_hier <- lmer(log_activity ~ (1 | county), data = d_mn)
+mod_hier
+```
+With floor
+
+```{r}
+mod_hier_floor <- lmer(log_activity ~ floor + (1 | county), data = d_mn)
+mod_hier_floor
+```
+
+With floor and uranium
+
+```{r}
+mod_hier_group <- lmer(log_activity ~ floor + log_uran + (1 | county), data = d_mn)
+mod_hier_group
+```
+
+# Extracting stuff
+
+Coefficients
+
+```{r}
+coef(summary(mod_hier_group)) 
+```
+
+Note difference between `coef` and `ranef`
+
+```{r}
+coef(mod_hier_group)
+ranef(mod_hier_group)
+```
+Pull out estimates for alpha's
+
+```{r}
+res <- coef(mod_hier_group)[[1]]["(Intercept)"]
+```
+
+Pull out standard errors for alpha's and join them to the alphas (horrible)
+
+```{r}
+#number of counties
+n_counties <- length(unique(d_mn$county))
+
+ses <- attr(ranef(mod_hier_group)[[1]], "postVar")[,,1:n_counties]
+df <- res %>% bind_cols(ses) 
+colnames(df) <- c("alpha", "se")
+df$county <- rownames(df)
+rownames(df) <- NULL
+
+```
+
+Pull out estimates for gamma0 and gamma 1
+
+```{r}
+gamma0 <- coef(summary(mod_hier_group))[1,1]
+gamma1 <- coef(summary(mod_hier_group))[3,1]
+
+```
+
+
+# Plotting stuff
+
+## Plot the alphas for each county (county intercepts)
+
+## Plot expected log radon versus uranium level
+
+Get uranium level for each county
+
+```{r}
+urans <- d_mn %>% 
+  group_by(county, log_uran) %>% 
+  slice(1) %>% 
+  dplyr::select(county, log_uran) 
+```
+Join to alpha estimates 
+
+```{r}
+df %>% 
+  left_join(urans) %>% 
+  filter(county!="") %>%
+  mutate(y_hat =  log_uran*gamma1 + alpha)
+```
+
+
+# Questions
+
+Using model with household and county covariates:
+
+- What is expected value of log radon for household in Carlton with basement measure and log uranium = 0?
+- What is expected value of log radon for household in Carlton with first floor measure and log uranium = 0?
+- What is expected value of log radon for household in Carlton with basement measure and log uranium = 0.3?
