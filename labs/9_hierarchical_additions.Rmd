@@ -1,0 +1,300 @@
+---
+title: 'Week 9: Hierarchical Models'
+author: "Monica Alexander"
+date: "19/03/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Packages
+
+```{r}
+library(tidyverse)
+library(lme4)
+```
+
+
+# Read in data
+
+Radon dataset, from Gelman and Hill. 
+
+Household level:
+
+```{r}
+d <- read.table(url("http://www.stat.columbia.edu/~gelman/arm/examples/radon/srrs2.dat"), header=T, sep=",")
+d
+```
+
+Also need info on soil uranium.
+
+County level: 
+
+```{r}
+cty <- read.table(url("http://www.stat.columbia.edu/~gelman/arm/examples/radon/cty.dat"), header = T, sep = ",")
+cty <- cty %>% mutate(fips = 1000 * stfips + ctfips) %>% dplyr::select(fips, Uppm)
+
+cty
+```
+
+
+Join these together, filter to just be Minnesota and tidy up
+
+```{r}
+d_mn <- d %>% 
+  filter(state=="MN") %>% # just looking at Minnesota 
+  mutate(fips = stfips * 1000 + cntyfips) %>% # creating a new fips variable so i can join the two datasets
+  select(fips, county, floor, activity) %>% # selecting the variables that i want (fip, county name, floor, activity (radon))
+  left_join(cty) %>% # joining the two datasets together
+  mutate(log_uran = log(Uppm), log_activity = log(activity)) %>% # creating some new variables (on log scale)
+  mutate(county = str_trim(county)) %>% # tidying up the county variable 
+  filter(county!= "") %>% # getting rid of missing county names
+  filter(!is.na(log_activity), !is.infinite(log_activity)) # getting rid of missing radon measurements
+
+
+d_mn
+```
+
+look at how many counties
+
+```{r}
+d_mn %>% 
+  select(county) %>% 
+  unique()
+```
+
+- y_i is log_activity
+- x_i is floor
+- u_j is log_uran
+- 'county' column tells us the group membership j
+
+
+# Models using `lm`
+
+## Fit with no pooling (Model 1 in lecture)
+
+$$
+y_i \sim N(\alpha_{j[i]}^{\text {no pool}}, \sigma^2_y)
+$$
+```{r}
+mod_nopool <- lm(log_activity~county, data = d_mn)
+summary(mod_nopool)
+```
+
+
+## Fit intercept only (model 2 in lecture)
+
+$$
+y_i \sim N(\mu, \sigma^2_y)
+$$
+```{r}
+mod_pool <- lm(log_activity ~ 1, data = d_mn)
+summary(mod_pool)
+```
+
+
+## Fit with floor as covariate (didn't do in lecture)
+
+$$
+y_i \sim N(\beta_0 + \beta_1x_i, \sigma^2_y)
+$$ 
+This is equivalent to
+
+$$
+y_i = \beta_0 + \beta_1x_i + \varepsilon_i
+$$
+
+```{r}
+mod_floor <- lm(log_activity ~ floor, data = d_mn)
+summary(mod_floor)
+```
+
+
+
+# Models using `lmer`
+
+## Intercept only (Model 3 in lecture)
+
+Model is 
+
+$$
+y_i \sim N(\alpha_{j[i]}, \sigma^2_y)
+$$
+
+with
+$$
+\alpha_j \sim N(\mu_{\alpha}, \sigma^2_{\alpha})
+$$
+
+Fit using `lmer`
+
+
+```{r}
+mod_hier <- lmer(log_activity ~ (1 | county), data = d_mn) ## (variable | group) # model county intercepts hierarchically
+summary(mod_hier)
+```
+
+- Look under Random effects --> county variance: $\sigma^2_{\alpha}$
+- Look under Fixed effects --> Estimate for the Intercept: $\mu_{\alpha}$
+
+
+
+## Adding in covariates at household level:  floor covariate
+
+Model is 
+$$
+y_i \sim N(\alpha_{j[i]} + \beta x_i, \sigma^2_y)
+$$
+with
+
+$$
+\alpha_j \sim N(\mu_{\alpha}, \sigma^2_{\alpha})
+$$
+
+```{r}
+mod_hier_floor <- lmer(log_activity ~ floor + (1 | county), data = d_mn)
+summary(mod_hier_floor)
+```
+
+- $\beta$ estimate is -0.627 (under fixed effects, covariate on floor)
+- $\mu_{\alpha}$ estimate (state-level mean = mean of the county intercepts) is 1.48 (under fixed effects, Intercept)
+- $\sigma^2_{\alpha}$ estimate (variance of the county intercepts) is 0.13
+
+
+## Adding in county-level covariate: uranium in soil
+
+Model is
+
+$$
+y_i \sim (\alpha_{j[i]} + \beta x_i, \sigma^2_y)
+$$
+with
+
+$$
+\alpha_j \sim N(\gamma_0 + \gamma_1 u_j, \sigma^2_{\alpha})
+$$
+
+
+```{r}
+mod_hier_group <- lmer(log_activity ~ floor + log_uran + (1 | county), data = d_mn)
+summary(mod_hier_group)
+```
+
+- $\beta$ estimate is -0.597
+- $\gamma_1$ estimate is 0.754: 1% increase in uranium leads to on average a 0.75% increase in radon
+- $\gamma_0$ estimate 1.482 (fixed effect intercept): interpretation: expected log radon for county with log uranium = 0
+
+
+# Extracting stuff
+
+Now focusing on the last model (hierarchical intercepts, household and county covariates)
+
+## Coefficients ($\beta$, $\gamma_0$ and $\gamma_1$)
+
+Pulling out the overall mean (state mean), the effect of uranium, and the effect of floor
+
+
+```{r}
+coef(summary(mod_hier_group)) 
+```
+
+## Extract estimates of county intercepts (alpha's)
+
+
+```{r}
+coef(mod_hier_group)
+# Intercept : alpha_j's 
+```
+
+
+Pull out estimates for alpha's
+
+```{r}
+res <- coef(mod_hier_group)[[1]]["(Intercept)"]
+res
+```
+
+Tidy this up:
+
+```{r}
+res <- res %>% 
+  rename(alpha = `(Intercept)`) %>% # rename column
+  mutate(county = rownames(res)) # make a county name column
+
+rownames(res) <- NULL # get rid of rownames
+
+res
+```
+
+
+Pull out standard errors for alpha's and join them to the alphas (horrible)
+
+```{r}
+#number of counties
+n_counties <- length(unique(d_mn$county))
+
+ses <- attr(ranef(mod_hier_group)[[1]], "postVar")[,,1:n_counties]
+df <- res %>% bind_cols(ses) 
+
+colnames(df)[3] <- "se"
+
+df
+
+```
+
+### Plot alpha_j's by county
+
+```{r}
+
+# reorder counties by value of alpha
+
+df <- df %>% 
+  mutate(county = fct_reorder(county, alpha))
+
+ggplot(data = df, aes(county, alpha)) +
+  geom_point() + 
+  coord_flip() +
+  geom_errorbar(aes(ymin = alpha - se, ymax = alpha + se))
+```
+
+Pull out estimates for gamma0 and gamma 1
+
+```{r}
+gamma0 <- coef(summary(mod_hier_group))[1,1]
+gamma1 <- coef(summary(mod_hier_group))[3,1]
+
+gamma0
+gamma1
+
+```
+
+
+### Plot expected log radon versus uranium level
+
+Get uranium level for each county
+
+```{r}
+urans <- d_mn %>% 
+  group_by(county, log_uran) %>% 
+  slice(1) %>% 
+  dplyr::select(county, log_uran) 
+```
+Join to alpha estimates 
+
+```{r}
+df %>% 
+  left_join(urans) %>% 
+  filter(county!="") %>%
+  mutate(y_hat =  log_uran*gamma1 + alpha)
+```
+
+
+# Questions
+
+Using model with household and county covariates:
+
+- What is expected value of log radon for household in Carlton with basement measure and log uranium = 0?
+- What is expected value of log radon for household in Carlton with first floor measure and log uranium = 0?
+- What is expected value of log radon for household in Carlton with basement measure and log uranium = 0.3?
