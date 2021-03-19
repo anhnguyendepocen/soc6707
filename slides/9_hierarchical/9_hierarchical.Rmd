@@ -1,0 +1,609 @@
+---
+title: "SOC6707 Intermediate Data Analysis"
+author: "Monica Alexander"
+date: "Week 9: Introduction to hierarchical models"
+output: 
+  beamer_presentation:
+    slide_level: 2
+header-includes:
+  - \usepackage[all,poly,ps,color]{xy}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, size = '\tiny')
+```
+
+## Hierarchical models
+
+- Hierarchical models used to estimate parameters in settings where there is a hierarchy of nested populations. 
+- Many problems have a natural hierarchy e.g.
+
+    + patients within hospitals
+    + school kids within classes within schools 
+    + maternal deaths within countries within regions within the world
+    
+
+- Want to get estimates of underlying parameters of interest (e.g. probability of dying, test score, risk of disease) accounting for the hierarchy in the data
+- A natural framework for including information at different levels of the hierarchy
+
+
+## Radon example 
+
+- Radon is a naturally occurring radioactive gas.
+-  Its decay products are also radioactive; in high concentrations, they
+can cause lung cancer (several 1000 deaths/year in the USA).
+- Radon levels vary greatly across US homes.
+- Data: radon measurements in over 80K houses throughout the US.
+- Hierarchy: houses observed in counties.
+- Potential predictors: floor (basement or 1st floor) in the house, soil uranium
+level at country level.
+
+```{r, include=FALSE}
+library(tidyverse)
+library(kableExtra)
+d <- read.table(url("http://www.stat.columbia.edu/~gelman/arm/examples/radon/srrs2.dat"), header=T, sep=",")
+```
+
+## Radon dataset
+
+Selected rows and columns
+
+```{r}
+head(d %>% select(idnum, state, county, basement ,activity)) %>% kable()
+```
+
+
+- 12,777 observations from `r length(unique(d$county))` counties
+
+What might we want to estimate/predict?
+
+## What might we want to estimate/predict?
+
+- Expected radon level in a county
+- Expected radon level in a county we did not have samples for
+- Predicted radon level for a newly observed house in a particular county
+- ...?
+
+## Let's introduce some notation
+
+- units $i = 1, \dots n$, the smallest items of measurement (household)
+- outcome $y=\left(y_{1}, \ldots, y_{n}\right)$. The unit-level outcome being measure (log radon)
+- groups $j = 1, \dots , J$ (counties)
+- Indexing $j[i]$ (the county for house $i$)
+- $x_i$ is an indicator, whether or not measurement was taken on basement (house level)
+- $u_j$ is the uranium level in the soil (county level)
+
+## Notation
+
+Thinking about our usual regression set-up, we usual write as something like
+$$
+Y_i = \beta_0 + \beta_1X_i + \varepsilon_i
+$$
+Let's rewrite this as
+$$
+Y_i \sim N(\mu_i, \sigma^2)
+$$
+with 
+$$
+\mu_i = \beta_0 + \beta_1X_i
+$$
+and 
+$$
+\varepsilon_i \sim N(0, \sigma^2)
+$$
+
+These are equivalent. 
+
+## A model for log radon
+
+$$
+Y_i \sim N(\mu_i, \sigma^2)
+$$
+
+- Note that $\mu_i = E(Y_i)$ i.e. the expected (log) radon level for a particular house $i$
+- How to model $\mu_i$?
+- Let's start simple (no covariates)
+- Given we know house $i$ is in county $j$, how can we model $\mu_i$?
+
+## One option: no pooling
+
+Estimate the county-level mean for each county, using only the
+data from that county. The model is 
+
+$$y_{i} {\sim} N\left(\alpha_{j[i]}^{\text{no pool}}, \sigma_{y}^{2}\right)$$
+
+- The "no pool" refers to treating each county separately, i.e. no pooling of information across counties
+- The most appropriate estimator for this is the county mean, i.e. $\bar{y}_{j}$
+- I.e. the expected level of log radon for a particular house $i$ in county $j$ is just the mean radon level for the county
+
+## No pooling
+
+
+```{r}
+ybars <- d %>% 
+  group_by(state, county) %>% 
+  mutate(activity = ifelse(activity==0, 0.1, activity)) %>% 
+  summarise(ybar  = mean(log(activity)),
+            n = n()) %>% 
+    group_by(n) 
+
+d %>% 
+  select(county, state, activity) %>% 
+  right_join(ybars) %>% 
+  filter(state=="PA") %>% 
+  mutate(id = 1:n()) %>% 
+  mutate(log_activity = log(activity)) %>% 
+  filter(n<100, activity>0) %>% 
+  ggplot(aes(n, log(activity))) + 
+  geom_point(aes(color = "obs")) + 
+  geom_point(aes(n, ybar, color = "county_mean"))  +
+  scale_color_manual(name = "", values = c("obs" = "grey", "county_mean" = "red"))+
+  ggtitle("radon measurments v sample size, Pennsylvania") + 
+  theme_bw(base_size = 16) +
+  ylab("log(radon activity)") + xlab("sample size of households in county")
+```
+
+What do you notice about this graph?
+
+## Another option: complete pooling
+
+- Maybe we believe that the expected radon level for a particular house is not going to vary by county
+- Use the state mean as the best estimate for the means in each county.
+
+Model is $$y_{i} \sim N\left(\mu, \sigma_{y}^{2}\right)$$
+
+- i.e. expected log radon level is constant across state
+- Best estimator here would just be state mean
+- this is referred to "complete pooling" because information across all counties is pooled together 
+
+
+## Complete pooling
+
+```{r}
+d %>% 
+  select(county, state, activity) %>% 
+  right_join(ybars) %>% 
+  filter(state=="PA") %>% 
+  mutate(id = 1:n()) %>% 
+  mutate(activity = ifelse(activity==0, 0.1, activity)) %>% 
+  mutate(log_activity = log(activity)) %>% 
+  mutate(mean_act = mean(log(activity))) %>% 
+  filter(n<100, activity>0) %>% 
+  ggplot(aes(n, log(activity))) + geom_point(aes(color = "obs")) + 
+  geom_point(aes(n, ybar, color = "county_mean"))  +
+  geom_hline(aes(yintercept = mean_act, color = "state_mean")) + 
+  scale_color_manual(name = "", values = c("obs" = "grey", "county_mean" = "red", "state_mean" = "black"))+
+  ggtitle("radon measurments v sample size, Pennsylvania") + 
+  theme_bw(base_size = 16) +
+  ylab("log(radon activity)") + xlab("sample size of households in county")
+```
+
+Pros? Cons?
+
+## A happy medium
+
+\centering
+\includegraphics[width = 0.5\textwidth]{../fig/goldilocks.jpeg}
+
+- Ideally we want to allow expected county radon levels to differ
+- But we also want to account for information across all counties and not treat counties as separate
+- A solution: partial pooling via hierarchical modeling 
+
+## Another option: hierarchical model
+
+- The expected radon level in a particular house $i$ is 
+- county means $\alpha_j$ come from some common distribution across a state
+- there are some underlying parameters governing the distribution of $\alpha$'s, which are generally unknown
+- middle ground between first two options, $\alpha$'s are similar but not the same
+
+## Hierarchical model
+
+The model is
+\begin{eqnarray*}
+y_{i}  & \sim & N\left(\alpha_{j[i]}, \sigma_{y}^{2}\right) \\ 
+\alpha_{j} & \sim  & N\left(\mu_{\alpha}, \sigma_{\alpha}^{2}\right)
+\end{eqnarray*}
+
+- The $alpha_j$'s are themselves assumed to be from a common distribution
+- $\mu_{\alpha}$ and $\sigma_{\alpha}$ are called **hyperparameters**
+
+## Hierarchical model
+
+\begin{xy}
+          \xymatrix{
+            & \mu_{\alpha}, \sigma_{\alpha} \ar[dl] \ar[d] \ar[drr] & & &  \\
+            \alpha_1\ar[d] & \alpha_2\ar[d] &
+            \cdots & \alpha_n\ar[d] \\
+            y_{1}, y_2 & y_{3}, \dots y_{8} & & y_{12770}, \dots y_{12777} }
+\end{xy}
+
+Because of the hierarchical set-up, the resulting estimates for the
+county means are in-between the no-pooling and complete-pooling
+estimates.
+
+## Compare to
+
+- No pooling
+
+\begin{xy}
+          \xymatrix{ \alpha_1\ar[d] & \alpha_2\ar[d] &
+            \cdots & \alpha_n\ar[d] \\
+            y_{1}, y_2 & y_{3}, \dots y_{8} & & y_{12770}, \dots y_{12777} }
+\end{xy}
+        
+- Complete pooling
+
+\centering
+\begin{xy}
+          \xymatrix{
+            & \mu \ar[dl] \ar[d] \ar[drr] & & &  \\
+            y_{1} & y_{2} & \cdots & y_{12777}}        
+  \end{xy}
+
+
+## Many names
+
+- Also known as multilevel models, I will probably flip between the two
+- Fixed and random effects
+    + $\alpha_j$'s commonly referred to as random effects, because they are modeled as random variables
+    + fixed effects are parameters that don't vary by group, or to parameters that vary but are not modeled themselves (e.g. county/state indicator variables)
+    
+- random effects models, (generalized) linear mixed models, mixed effects models: often used as synonyms for multilevel models
+
+## The effect of partial pooling in the radon case
+
+```{r}
+library(lme4)
+d <- d %>% 
+  mutate(activity = ifelse(activity==0, 0.1, activity),
+         log_activity = log(activity))
+mod <- lmer (log_activity ~ (1 | county), data = d %>% filter(state=="PA"))
+part_pooled <- tibble(pp = coef(mod)$county[, '(Intercept)'])
+
+ybars %>% 
+  filter(state=="PA") %>% 
+  bind_cols(part_pooled) %>% 
+  ungroup() %>% 
+  mutate(mean_act = mean(ybar) ) %>% 
+  filter(n < 100) %>% 
+  ggplot(aes(n, ybar)) + 
+  geom_point(aes(color = "unpooled_mean"), size = 5) + 
+  geom_point(aes(n, pp, color = "partially_pooled_mean"), size = 5) + 
+  geom_hline(aes(yintercept = mean_act, color = "pooled_mean")) + 
+  scale_color_manual(name = "", values = c("unpooled_mean" = "red", "partially_pooled_mean" = "blue", "pooled_mean" = "black")) + 
+  theme_bw(base_size = 16) + 
+  scale_x_log10() + 
+  ylab("mean log radon") + xlab("sample size")
+```
+
+## The effect of partial pooling in the radon case
+
+```{r}
+
+ybars %>% 
+  filter(state=="PA") %>% 
+  bind_cols(part_pooled) %>% 
+  ungroup() %>% 
+  mutate(mean_act = mean(ybar) ) %>% 
+  filter(n < 100) %>% 
+  ggplot(aes(ybar, pp)) + 
+  geom_point(aes(size = n)) +
+  theme_bw(base_size = 16) + 
+  geom_abline(intercept = 0, slope = 1) + ylab("partially pooled mean") + xlab("unpooled mean")
+```
+
+## The effect of partial pooling in the radon case
+
+```{r}
+
+ybars %>% 
+  filter(state=="PA") %>% 
+  bind_cols(part_pooled) %>% 
+  ungroup() %>% 
+  mutate(mean_act = mean(ybar) ) %>% 
+  filter(n < 100) %>% 
+  ggplot(aes(n, pp-ybar)) + 
+  geom_point(size = 5) +
+  theme_bw(base_size = 16) + 
+  geom_hline(yintercept = 0) + ylab("difference") + xlab("sample size") + ggtitle("Difference in partially pool and unpooled means \nversus sample size")
+```
+
+## Where are we at
+
+- Hierarchical models allow for 'information exchange' across groups 
+- Has the effect 'shrinking' group means to the overall mean
+- Shrinking effect is larger when the sample size in a particular group is smaller
+
+## Why does this happen?
+
+- It turns out that the estimate of the hierarchical mean $\hat{\alpha}_j$ is a weighted mean between information from that group $j$ and all the other groups:
+
+$$
+\hat{\alpha}_j = \frac{\frac{n_{j}}{\sigma_{y}^{2}} \bar{y}_{j}+\frac{1}{\sigma_{\alpha}^{2}} \mu_{\alpha}}{\frac{n_{j}}{\sigma_{y}^{2}}+\frac{1}{\sigma_{\alpha}^{2}}}
+$$
+
+# Adding covariates
+
+## Adding covariates
+
+For the radon example:
+
+- The measurements are not exactly comparable across houses because
+in some houses, measurements are taken in the basement, while in
+other houses, 1st floor measurement are taken. (This is $x_i$)
+- Additionally, county-level uranium measurements are probably
+informative for across-county differences in mean levels. (This is $u_j$)
+
+When adding covariates, need to think about 
+
+- what level the covariate relates to 
+- whether or not to model the effect hierarchically
+
+## Including covariates at the unit level
+
+- Let $x_i$ be the house-level first-floor indicator (with $x_i= 0$ for
+basements, 1 otherwise).
+- This is a house-level covariate
+- We can include house-level predictors in the house-level mean as
+follows:
+
+$$
+\begin{aligned}
+y_{i} & \sim N\left(\alpha_{j[i]}+\beta x_{i}, \sigma_{y}^{2}\right), \text { for } i=1,2, \ldots, n \\
+\alpha_{j} & \sim N\left(\mu_{\alpha}, \sigma_{\alpha}^{2}\right), \text { for } j=1,2, \ldots, J
+\end{aligned}
+$$
+
+Note: we have varying intercepts but a constant slope
+
+## Covariates at unit level
+
+$$
+\begin{aligned}
+y_{i} & \sim N\left(\alpha_{j[i]}+\beta x_{i}, \sigma_{y}^{2}\right), \text { for } i=1,2, \ldots, n \\
+\alpha_{j} & \sim N\left(\mu_{\alpha}, \sigma_{\alpha}^{2}\right), \text { for } j=1,2, \ldots, J
+\end{aligned}
+$$
+
+- Estimate of $\beta$ is -0.693
+- Estimate of $\mu_{\alpha}$ is 1.462
+
+## County-specific intercepts
+
+```{r, eval = TRUE}
+d_pa <- d %>% filter(state=="MN")
+n_counties <- length(unique(d_pa$county))
+mod_hier <- lmer(log_activity ~ (1 | county) + floor, data = d_pa)
+res <- coef(mod_hier)[[1]]["(Intercept)"]
+ses <- attr(ranef(mod_hier)[[1]], "postVar")[,,1:n_counties]
+df <- res %>% bind_cols(ses) 
+colnames(df) <- c("alpha", "se")
+df$county <- rownames(df)
+
+df %>% 
+  mutate(county = str_trim(county)) %>% 
+  mutate(county = factor(county)) %>% 
+  mutate(county = fct_reorder(county, alpha)) %>% 
+  filter(county!="") %>% 
+  ggplot(aes(county,alpha)) + geom_point() + coord_flip()+
+  geom_errorbar(aes(ymin = alpha - se, ymax = alpha + se))
+```
+
+## Including covariates at the group level
+
+- County-level log-uranium measurements $u_j$ are probably informative
+for across-county differences in mean levels.
+- We can include group-level predictors in the group-level mean as
+follows:
+
+$$
+\begin{aligned}
+y_{i}  & \sim N\left(\alpha_{j[i]}+\beta x_{i}, \sigma_{y}^{2}\right), \text { for } i=1,2, \ldots, n \\
+\alpha_{j} & \sim N\left(\gamma_{0}+\gamma_{1} u_{j}, \sigma_{\alpha}^{2}\right), \text { for } j=1,2, \ldots, J
+\end{aligned}
+$$
+
+## Adding covariates at group level
+
+$$
+\begin{aligned}
+y_{i}  & \sim N\left(\alpha_{j[i]}+\beta x_{i}, \sigma_{y}^{2}\right), \text { for } i=1,2, \ldots, n \\
+\alpha_{j} & \sim N\left(\gamma_{0}+\gamma_{1} u_{j}, \sigma_{\alpha}^{2}\right), \text { for } j=1,2, \ldots, J
+\end{aligned}
+$$
+
+```{r}
+
+cty <- read.table(url("http://www.stat.columbia.edu/~gelman/arm/examples/radon/cty.dat"), header = T, sep = ",")
+cty <- cty %>% mutate(fips = 1000 * stfips + ctfips) %>% dplyr::select(fips, Uppm)
+
+d_pa <- d %>% 
+  filter(state=="MN") %>% 
+  mutate(fips = stfips * 1000 + cntyfips) %>% 
+  dplyr::select(fips, county, floor, activity) %>% 
+  left_join(cty) %>% 
+  mutate(log_uran = log(Uppm), log_activity = log(activity))
+
+
+mod_hier_group <- lmer(log_activity ~ (1 | county) + floor + log_uran, data = d_pa)
+#coef(summary(mod_hier_group))
+#colMeans(coef(mod_hier_group)[[1]])
+```
+
+- Estimate of $\beta$ is -0.668
+- Estimate of $\gamma_0$ is 1.407
+- Estimate of $\gamma_1$ is 0.729
+
+
+## County-specific intercepts
+
+```{r}
+res <- coef(mod_hier_group)[[1]]["(Intercept)"]
+ses <- attr(ranef(mod_hier_group)[[1]], "postVar")[,,1:n_counties]
+#se.coef(mod_hier_group)[[1]]["Intercept"]
+df <- res %>% bind_cols(ses) 
+colnames(df) <- c("alpha", "se")
+df$county <- rownames(df)
+
+df %>% 
+  mutate(county = str_trim(county)) %>% 
+  mutate(county = factor(county)) %>% 
+  mutate(county = fct_reorder(county, alpha)) %>% 
+  filter(county!="") %>% 
+  ggplot(aes(county,alpha)) + geom_point() + coord_flip()+
+  geom_errorbar(aes(ymin = alpha - se, ymax = alpha + se))
+```
+
+## County-level radon and uranium
+
+```{r}
+
+gamma0 <- coef(summary(mod_hier_group))[1,1]
+gamma1 <- coef(summary(mod_hier_group))[3,1]
+
+urans <- d_pa %>% 
+  group_by(county, log_uran) %>% 
+  slice(1) %>% 
+  mutate(county = str_trim(county)) %>% 
+  filter(county!="") %>% 
+  dplyr::select(county, log_uran) 
+
+df %>% 
+  mutate(county = str_trim(county)) %>% 
+  left_join(urans) %>% 
+  filter(county!="") %>%
+  mutate(alpha_hat =  log_uran*gamma1 + alpha) %>% 
+  ggplot(aes(log_uran, alpha_hat)) + 
+  geom_point() + 
+  geom_errorbar(aes(ymin = alpha_hat - se, ymax = alpha_hat + se)) + 
+  geom_abline(intercept = gamma0, slope = gamma1) +
+  ylab("log radon level") + xlab("log uranium") + ggtitle("County radon levels versus Uranium, Minnesota")
+
+  
+```
+
+
+
+# Varying slopes (TBD)
+
+
+## What about letting the effect of $x_i$ vary by county?
+
+- In last model, we assume that the difference between basement and first floor measurement is the same across
+houses, no matter which county the house is in.
+- What if that difference varies by county?
+
+
+$$
+\begin{aligned}
+y_{i} & \sim N\left(\alpha_{j[i]}+\beta_{j[i]} x_{i}, \sigma_{y}^{2}\right), \text { for } i=1,2, \ldots, n \\
+\alpha_{j} & \sim N\left(\mu_{\alpha}, \sigma_{\alpha}^{2}\right), \text { for } j=1,2, \ldots, J \\
+\beta_{j} & \sim N\left(\mu_{\beta}, \sigma_{\beta}^{2}\right), \text { for } j=1,2, \ldots, J
+\end{aligned}
+$$
+
+Allowing for varying slopes. 
+
+## Allowing for varying slopes at unit level
+
+$$
+\begin{aligned}
+y_{i} & \sim N\left(\alpha_{j[i]}+\beta_{j[i]} x_{i}, \sigma_{y}^{2}\right), \text { for } i=1,2, \ldots, n \\
+\alpha_{j} & \sim N\left(\mu_{\alpha}, \sigma_{\alpha}^{2}\right), \text { for } j=1,2, \ldots, J \\
+\beta_{j} & \sim N\left(\mu_{\beta}, \sigma_{\beta}^{2}\right), \text { for } j=1,2, \ldots, J
+\end{aligned}
+$$
+
+- Estimate of $\mu_{\alpha}$ is 1.46
+- Estimate of $\mu_{\beta}$ is -0.679
+
+```{r}
+mod_hier_slopes <- lmer(log_activity ~ floor + (1+floor|county), data = d_pa)
+#coef(summary(mod_hier_slopes))
+#coef(mod_hier_slopes)[[1]][1:10,]
+#ranef(mod_hier_slopes)[[1]][1:10,]
+#colMeans(coef(mod_hier_slopes)[[1]])
+```
+
+## County-specific intercepts
+
+```{r}
+res <- coef(mod_hier_slopes)[[1]]["(Intercept)"]
+ses <- (attr(ranef(mod_hier_slopes)[[1]], "postVar"))[1,1,1:n_counties]
+df <- res %>% bind_cols(ses) 
+colnames(df) <- c("alpha", "se")
+df$county <- rownames(df)
+
+df %>% 
+  mutate(county = str_trim(county)) %>% 
+  mutate(county = factor(county)) %>% 
+  mutate(county = fct_reorder(county, alpha)) %>% 
+  filter(county!="") %>% 
+  ggplot(aes(county,alpha)) + geom_point() + coord_flip()+
+  geom_errorbar(aes(ymin = alpha - se, ymax = alpha + se))
+```
+
+
+
+## County-specific slopes
+
+```{r}
+res <- coef(mod_hier_slopes)[[1]]["floor"]
+ses <- (attr(ranef(mod_hier_slopes)[[1]], "postVar"))[2,2,1:n_counties]
+df <- res %>% bind_cols(ses) 
+colnames(df) <- c("alpha", "se")
+df$county <- rownames(df)
+
+df %>% 
+  mutate(county = str_trim(county)) %>% 
+  mutate(county = factor(county)) %>% 
+  mutate(county = fct_reorder(county, alpha)) %>% 
+  filter(county!="") %>% 
+  ggplot(aes(county,alpha)) + geom_point() + coord_flip()+
+  geom_errorbar(aes(ymin = alpha - se, ymax = alpha + se))
+```
+
+
+# Hierarchical models in R
+
+## Fitting hierarchical models in R
+
+- Many different options and packages to do this
+- Many powerful options fitting Bayesian hierarchical models using languages like Stan or JAGS (but no time!)
+- We will be using the `lme4` package, which allows you to fit hierarchical models using commands that are a logical extension of `lm` and `glm`
+- (So you will need to `install.packages(lme4)`)
+
+
+## Radon levels in Minnesota
+
+We will see in lab, but a brief introduction to notation.
+
+What we would usually do:
+
+```{r, eval = FALSE, echo = TRUE}
+library(lme4)
+d_mn <- d %>% filter(state=="MN")
+
+mod_nopool <- lm(log_activity ~ county, data = d_mn)
+mod_pool <- lm(log_activity ~ 1, data = d_mn)
+```
+
+Hierarchical model:
+
+```{r, eval = FALSE, echo = TRUE}
+mod_hier <- lmer(log_activity ~ (1 | county), data = d_mn)
+```
+
+
+## Radon levels in Pennsylvania
+
+Adding covariates:
+
+\tiny
+```{r, eval = FALSE, echo = TRUE}
+mod_hier <- lmer(log_activity ~ floor + log_uran + (1 | county), data = d_mn)
+```
+
+
+
+
