@@ -1,0 +1,257 @@
+---
+title: "SOC6707 Intermediate Data Analysis, Winter 2021"
+author: "Assignment 2"
+date: "Due date: 5 April 11:59pm ET"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, results = 'hide', warning = FALSE, message = FALSE, fig.show = 'hide')
+```
+
+# Details
+
+There are **100 points** in total. 
+
+You will need to submit both your answers to the questions and accompanying R code. You should submit:
+
+- your R Markdown file; and
+- the knitted PDF resulting from your R Markdown file. 
+
+Please submit both files via Quercus. 
+
+Remember to:
+
+- Label the answers to each question 
+- Label any graphs clearly with suitable axis labels and titles
+- Comment your code so that it is easy to understand
+
+\newpage 
+
+```{r}
+library(tidyverse)
+library(here)
+library(lme4)
+```
+
+# Overview
+
+```{r}
+ces <- read_csv(here("data/ces2019.csv"))
+census <- read_csv(here("data/census_income.csv"))
+```
+
+This assignment relates to analyzing patterns in who intended to vote Liberal, as reported in the 2019 Canadian Election Survey. You will be using a cleaned, subsetted version of the 2019 Canadian Election Survey (`ces2019`) and median household incomes derived from the census (`census_income`). 
+
+
+# Question 1 (5 points)
+
+Read in the two datasets and join them together, so that the median household income by province is contained in the CES dataset. You should be able to do the join using code that looks something like that shown below. 
+
+```{r, eval = FALSE, echo = TRUE}
+ces <- ces %>% left_join(census)
+```
+
+```{r}
+ces <- ces %>% left_join(census)
+```
+
+
+<!-- # Question 2 -->
+
+<!-- Calculate the median of `hh_income` by province/territory and compare these values to the `median_hh_income` derived from the census. Do they roughly agree (in terms of ranking by province?) Ideally you would create a table which one row per province/territory and a column for the two incomes.  -->
+
+<!-- ```{r} -->
+<!-- ces %>%  -->
+<!--   group_by(province_territory, median_hh_income) %>%  -->
+<!--   summarize(median_income_ces = median(hh_income)) %>%  -->
+<!--   arrange(-median_hh_income) -->
+<!-- ``` -->
+
+
+# Question 2 (10 points)
+
+- Make a new binary variable called `vote_liberal` which is equal to 1 if respondents intended to vote Liberal and 0 otherwise
+- Make new variables called `log_hh_income` and `log_median_hh_income` which is the log of the two relevant variables.
+- Once you have created the logged income variables, create two more variables, which are standardized versions of the logged income variables. You can do this using the code below:
+
+```{r, eval = FALSE, echo = TRUE}
+# standardized log hh income
+ces$log_hh_income_c <-  (ces$log_hh_income - mean(ces$log_hh_income))/sd(ces$log_hh_income)
+
+# standardized log median hh income
+ces$log_median_hh_income_c <-  (ces$log_median_hh_income - mean(ces$log_median_hh_income))/
+  sd(ces$log_median_hh_income)
+
+```
+
+
+Make sure these new variables are are saved in your `ces` dataset. 
+
+```{r}
+ces <- ces %>% 
+  mutate(vote_liberal = ifelse(vote_for=="Liberal Party", 1, 0)) %>% 
+  mutate(log_hh_income = log(hh_income), log_median_hh_income = log(median_hh_income))
+
+ces$log_hh_income_c = (ces$log_hh_income - mean(ces$log_hh_income))/sd(ces$log_hh_income)
+ces$log_median_hh_income_c = (ces$log_median_hh_income - mean(ces$log_median_hh_income))/sd(ces$log_median_hh_income)
+
+
+```
+
+# Question 3 (20 points)
+
+With the aid of graphs and discussion, tell me three interesting things about patterns in who intends to vote Liberal. 
+
+```{r}
+ces %>% 
+  group_by(yob) %>% 
+  summarize(prop_vote_liberal = mean(vote_liberal)) %>% 
+  filter(yob>1940) %>% 
+  ggplot(aes(yob, prop_vote_liberal)) + 
+  geom_line() + geom_point() 
+```
+
+```{r}
+ces %>% 
+  group_by(province_territory, gender) %>% 
+  summarize(prop_vote_liberal = mean(vote_liberal)) %>% 
+  ggplot(aes(province_territory, prop_vote_liberal, fill = gender)) + 
+  geom_bar(stat = "identity", position = 'dodge') + 
+  coord_flip()
+```
+```{r}
+# NWT and Nunavut very small
+ces %>% 
+  group_by(province_territory) %>% tally()
+```
+
+
+
+```{r}
+ces %>% 
+  group_by(province_territory, log_median_hh_income) %>% 
+  summarize(prop_vote_liberal = mean(vote_liberal)) %>% 
+  ggplot(aes(log_median_hh_income, prop_vote_liberal, label = province_territory)) + 
+  geom_text() + geom_smooth(method = "lm")
+```
+```{r}
+hist(ces$hh_income[ces$hh_income<10^6])
+
+# might be nice to do income category
+
+income_groups <- c(seq(0, 2.2*10^5, by = 20000))
+ces$income_group <- as.numeric(as.character(cut(ces$hh_income, 
+                   breaks= c(income_groups, Inf), 
+                   labels = income_groups, 
+                   right = FALSE)))
+
+ces %>% 
+  group_by(income_group) %>% tally()
+
+```
+
+```{r}
+# opposite way at individual level?
+ces %>% 
+  group_by(income_group) %>% 
+  summarize(prop_vote_liberal = mean(vote_liberal)) %>% 
+  ggplot(aes(income_group, prop_vote_liberal)) + 
+  geom_point() 
+```
+
+# Question 4 (40 points)
+
+### a) 
+Using `glmer`, fit the following model:
+
+$$
+Y_i \sim \text{Bernoulli}(p_i)
+$$
+$$
+\text{logit} p_i = \alpha_{j[i]} + \beta x_i
+$$
+$$
+\alpha_j \sim N(\mu, \sigma^2)
+$$
+where
+
+- $Y_i$ refers to whether or not individual $i$ intends to vote Liberal
+- The index $j$ refers to province/territory
+- $x_i$ refers to standardized logged household income (`log_hh_income_c`)
+
+
+```{r}
+mod1 <- glmer(vote_liberal ~ log_hh_income_c +  (1|province_territory), 
+              data = ces, family = "binomial")
+summary(mod1)
+```
+
+Interpret the coefficient on $x_i$.
+
+## b)
+
+Plot the $\hat{\alpha_j}$'s for each province/territory, also showing +/- 1 standard error. 
+
+Here's some code to help get the estimates extracted from the model:
+
+```{r, echo = TRUE, eval = FALSE}
+alphas <- coef(mod1)[[1]]["(Intercept)"]
+alphas <- alphas %>% mutate(province = rownames(alphas))
+ses <- attr(ranef(mod1)[[1]],  "postVar")[,,1:11]
+alphas <- alphas %>% mutate(se = ses) %>% 
+  rename(alpha = `(Intercept)`) %>% 
+  mutate(province = fct_reorder(province, alpha)) 
+```
+
+
+```{r}
+alphas <- coef(mod1)[[1]]["(Intercept)"]
+alphas <- alphas %>% mutate(province = rownames(alphas))
+ses <- attr(ranef(mod1)[[1]],  "postVar")[,,1:11]
+alphas <- alphas %>% mutate(se = ses) %>% rename(alpha = `(Intercept)`)
+
+alphas %>% 
+  mutate(province = fct_reorder(province, alpha)) %>% 
+  ggplot(aes(province, alpha)) + geom_point() + 
+  geom_errorbar(aes(ymin = alpha - se, ymax = alpha + se)) + coord_flip()
+```
+
+
+## c) 
+
+What's the expected probability of a respondent in Ontario with mean (log) income voting Liberal, based on the model fit in part a)?
+
+```{r}
+a_hat <- alphas %>% filter(province=="Ontario") %>% select(alpha) %>% pull()
+
+exp(a_hat)/(1+exp(a_hat))
+```
+
+# Question 5 (25 points)
+## a)
+
+Using `glmer`, fit the following model:
+
+$$
+Y_i \sim \text{Bernoulli}(p_i)
+$$
+$$
+\text{logit} p_i = \alpha_{j[i]} + \beta x_i
+$$
+$$
+\alpha_j \sim N(\gamma_0 + \gamma_1 z_j, \sigma^2)
+$$
+
+where everything is as before and $z_j$ is the standardized log median income at the province/territory level (`log_median_hh_income_c`). 
+
+```{r}
+mod2 <- glmer(vote_liberal ~ log_hh_income_c + log_median_hh_income_c+  (1|province_territory), 
+              data = ces, family = "binomial")
+summary(mod2)
+```
+Interpret the coefficient on $z_j$.
+
+## b)
+
+Discuss briefly the estimated coefficients on income at different levels in the model fit in part b). Why is this counter-intuitive/surprising? What does it mean?

@@ -1,0 +1,15 @@
+Geographic code,Geographic name,Global non-response rate,Data quality flag,Household type,"Number of households, 2006","Number of households, 2016","Median household total income (2015 constant dollars), 2005","Median household total income (2015 constant dollars), 2015","Median household total income (2015 constant dollars), % change","Median household after-tax income (2015 constant dollars), 2005","Median household after-tax income (2015 constant dollars), 2015","Median household after-tax income (2015 constant dollars), % change"
+1,Canada,4,20000,Total – Household type including census family structure,12437470,14072080,63457,70336,10.8,55118,61348,11.3
+10,Newfoundland and Labrador,4,0,Total – Household type including census family structure,197185,218675,52204,67272,28.9,46147,59060,28
+11,Prince Edward Island,4.1,0,Total – Household type including census family structure,53135,59470,55061,61163,11.1,48240,53434,10.8
+12,Nova Scotia,3.9,0,Total – Household type including census family structure,376845,401990,55117,60764,10.2,48030,53129,10.6
+13,New Brunswick,3.9,0,Total – Household type including census family structure,295960,319775,53483,59347,11,47306,52553,11.1
+24,Quebec,3.7,20000,Total – Household type including census family structure,3189345,3531665,54921,59822,8.9,47854,52207,9.1
+35,Ontario,3.7,20000,Total – Household type including census family structure,4555030,5169175,71534,74287,3.8,61659,65285,5.9
+46,Manitoba,4.3,0,Total – Household type including census family structure,448780,489050,56644,68147,20.3,49511,59093,19.4
+47,Saskatchewan,4.8,0,Total – Household type including census family structure,387145,432625,55251,75412,36.5,48610,65784,35.3
+48,Alberta,4.7,20000,Total – Household type including census family structure,1256200,1527675,75684,93835,24,65317,80300,22.9
+59,British Columbia,4.9,20000,Total – Household type including census family structure,1643150,1881970,62372,69995,12.2,54983,61280,11.5
+60,Yukon,6.7,100,Total – Household type including census family structure,12615,15215,71093,84521,18.9,62516,73935,18.3
+61,Northwest Territories,7.5,100,Total – Household type including census family structure,14240,14980,94521,117688,24.5,79744,99664,25
+62,Nunavut,7.9,100,Total – Household type including census family structure,7855,9820,71285,97441,36.7,62918,85605,36.1
