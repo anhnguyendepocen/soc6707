@@ -1,0 +1,124 @@
+---
+title: "Formatting examples"
+author: "Monica Alexander"
+date: "26/03/2021"
+output: 
+  pdf_document:
+    number_sections: true
+fontsize: 12pt
+header-includes:
+  - \usepackage{setspace} \onehalfspacing
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+# Introduction
+
+Here is my introduction, I want to talk about formatting. I'm writing some more text so I have text on multiple lines and so you can see that it's single spaced.
+
+Here is an example of *italics*.
+
+Here is an example of **bolding**.
+
+Trying to \text{\underline{underline}}.
+
+
+## Overview
+
+- Hiding code, message, warnings
+- Numbering sections
+- Fontsize, spacing
+- Underlining, bolding, italicizing
+- Writing math
+- Table formatting
+
+# Data
+
+Here is my data:
+
+
+```{r}
+library(tidyverse)
+library(here)
+d <- read_csv(here("data/pma.csv"))
+head(d)
+```
+
+
+## Summary statistics
+
+
+```{r}
+prop_by_region <- d %>% 
+  group_by(region) %>% 
+  summarize(prop_abortion = mean(abortion)) %>% 
+  arrange(prop_abortion)
+prop_by_region
+```
+
+KableExtra package
+
+```{r}
+library(kableExtra)
+
+prop_by_region %>% 
+  kable(booktabs = TRUE, caption = "My caption", col.names = c("Region", "Proportion of women had abortion")) %>%
+  kable_styling(latex_options = "striped" )
+
+```
+
+
+## Bivariate relationships
+
+# Methods
+
+## Writing math
+
+The way that we write math in Rmarkdown essentially you write within dollar signs. 
+
+Note: one dollar sign is same line. Define $Y_i$ to be whether or not woman $i$ has ever had an abortion. 
+
+Two dollars signs is new line and indented. This is for when you want to write an equation. 
+
+$$
+Y_i = \beta_0 + \beta_1 X_i
+$$
+Keep typing below
+
+Things to note:
+
+- Subscripts, write after underscore $Y_i$
+- If you want more than one subscript, the subscript has to go in curly brackets. $X_{i1}$
+- Greek letters: start with backslash and then write the name of the letter. $\beta$, $\alpha$, $\sigma$
+- Subscripts on greek: $\beta_0$
+- Superscript: $\sigma^2$
+
+Example of a hierarchical model:
+
+$$
+Y_i \sim N(\alpha_{j[i]}, \sigma^2)
+$$
+with
+
+$$
+\alpha_j \sim N(\mu_{\alpha}, \sigma^2_{\alpha})
+$$
+
+Logistic regression:
+
+$$
+\text{logit }Y_i = \beta_0 + \beta_1X_i
+$$
+
+
+Numbered lists:
+
+1. hliu
+2. iugouygdlyugs
+
+# Discussion
+
+# Reference
+
