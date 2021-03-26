@@ -1,0 +1,35 @@
+---
+title: "SOC6707 Intermediate Data Analysis, Winter 2021"
+author: "Research Project: Part 3"
+date: "Due date: 5 April 11:59pm ET"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, results = 'hide', warning = FALSE, message = FALSE, fig.show = 'hide')
+```
+
+# Research project analysis
+
+Carry out the appropriate statistical analysis to answer your research question. In your submission, please briefly restate your research question(s) at the beginning of your report. Remember, that the final report submission should read like a shortened academic paper, so it is important for you to communicate your questions, findings, and the steps you took clearly to the reader. 
+
+Please clearly state what your statistical model is. This would most effectively be done using equations with appropriately defined symbols. We will go over how to write math in R Markdown in Week 10. 
+
+In terms of your analysis you should 
+
+- Describe the method you are using and explain why you chose this method
+- Describe the variables in your model and why you chose to include these variables (this may be justified by your EDA)
+- Present results from your analysis
+- Interpret your results, including both effect sizes and statistical significance
+- Include plots of results where appropriate
+- Briefly discuss whether these results support your initial hypotheses or otherwise
+
+Your submission at this stage can be fairly brief, with the expectation that it will be extended further for final submission. Note that even though it may be brief, you still need to communicate clearly. 
+
+Guide to submission:
+
+- Please submit both a Rmd and the knitted pdf.
+- Please submit your analysis in a separate document to your assignment. There will be a separate submission on Quercus. 
+- Length should be ~2-3 pages.
+- As for the EDA, in order to aid presentation and for ease of reading, it is suggested that you 'hide' the code that produces any graphs when knitting the Rmd. You can do this by adding `echo = FALSE` to the top of the R chunk, as illustrated below. This will just knit the output of the code, rather than the code itself. 
+- In addition to hiding your code, you can also add `warning=FALSE, message=FALSE` to the top of the R chunk to suppress any unwanted messages.

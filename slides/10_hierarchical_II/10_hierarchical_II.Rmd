@@ -1,0 +1,413 @@
+---
+title: "SOC6707 Intermediate Data Analysis"
+author: "Monica Alexander"
+date: "Week 10: Hierarchical models II"
+output: 
+  beamer_presentation:
+    slide_level: 2
+header-includes:
+  - \usepackage[all,poly,ps,color]{xy}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, size = '\tiny')
+```
+
+## Recap
+
+Last week we started talking about hierarchical models
+
+- Account for hierarchical structure in data (e.g. houses within counties)
+- 'Happy medium' between treating all groups separately versus all groups the same
+- Group-level effects are treated as coming from a common distribution, which allows information to be pooled across groups
+- Particularly useful when some groups have small sample sizes
+
+## This week
+
+- Varying slopes
+- Hierarchical GLM (logistic regression)
+
+## Last week
+
+For radon, we got up to
+$$
+\begin{aligned}
+y_{i}  & \sim N\left(\alpha_{j[i]}+\beta x_{i}, \sigma_{y}^{2}\right), \text { for } i=1,2, \ldots, n \\
+\alpha_{j} & \sim N\left(\gamma_{0}+\gamma_{1} u_{j}, \sigma_{\alpha}^{2}\right), \text { for } j=1,2, \ldots, J
+\end{aligned}
+$$
+```{r}
+library(tidyverse)
+library(kableExtra)
+library(lme4)
+d <- read.table(url("http://www.stat.columbia.edu/~gelman/arm/examples/radon/srrs2.dat"), header=T, sep=",")
+d <- d %>% 
+  mutate(activity = ifelse(activity==0, 0.1, activity),
+         log_activity = log(activity))
+cty <- read.table(url("http://www.stat.columbia.edu/~gelman/arm/examples/radon/cty.dat"), header = T, sep = ",")
+cty <- cty %>% mutate(fips = 1000 * stfips + ctfips) %>% dplyr::select(fips, Uppm)
+
+d_pa <- d %>% 
+  filter(state=="MN") %>% 
+  mutate(fips = stfips * 1000 + cntyfips) %>% 
+  dplyr::select(fips, county, floor, activity) %>% 
+  left_join(cty) %>% 
+  mutate(log_uran = log(Uppm), log_activity = log(activity))
+n_counties <- length(unique(d_pa$county))
+
+```
+
+
+
+# Varying slopes 
+
+
+## What about letting the effect of $x_i$ vary by county?
+
+- In last model, we assume that the difference between basement and first floor measurement is the same across
+houses, no matter which county the house is in.
+- What if that difference varies by county?
+
+
+$$
+\begin{aligned}
+y_{i} & \sim N\left(\alpha_{j[i]}+\beta_{j[i]} x_{i}, \sigma_{y}^{2}\right), \text { for } i=1,2, \ldots, n \\
+\alpha_{j} & \sim N\left(\mu_{\alpha}, \sigma_{\alpha}^{2}\right), \text { for } j=1,2, \ldots, J \\
+\beta_{j} & \sim N\left(\mu_{\beta}, \sigma_{\beta}^{2}\right), \text { for } j=1,2, \ldots, J
+\end{aligned}
+$$
+
+Allowing for varying slopes. 
+
+## In R
+
+\footnotesize
+```{r, eval = FALSE, echo = TRUE}
+mod_hier_slopes <- lmer(log_activity ~ floor + (1+floor|county), 
+                        data = d_mn)
+```
+
+
+## Allowing for varying slopes at unit level
+
+$$
+\begin{aligned}
+y_{i} & \sim N\left(\alpha_{j[i]}+\beta_{j[i]} x_{i}, \sigma_{y}^{2}\right), \text { for } i=1,2, \ldots, n \\
+\alpha_{j} & \sim N\left(\mu_{\alpha}, \sigma_{\alpha}^{2}\right), \text { for } j=1,2, \ldots, J \\
+\beta_{j} & \sim N\left(\mu_{\beta}, \sigma_{\beta}^{2}\right), \text { for } j=1,2, \ldots, J
+\end{aligned}
+$$
+
+- Estimate of $\mu_{\alpha}$ is 1.46
+- Estimate of $\mu_{\beta}$ is -0.679
+
+```{r}
+mod_hier_slopes <- lmer(log_activity ~ floor + (1+floor|county), data = d_pa)
+#coef(summary(mod_hier_slopes))
+#coef(mod_hier_slopes)[[1]][1:10,]
+#ranef(mod_hier_slopes)[[1]][1:10,]
+#colMeans(coef(mod_hier_slopes)[[1]])
+```
+
+## County-specific intercepts
+
+```{r}
+res <- coef(mod_hier_slopes)[[1]]["(Intercept)"]
+ses <- (attr(ranef(mod_hier_slopes)[[1]], "postVar"))[1,1,1:n_counties]
+df <- res %>% bind_cols(ses) 
+colnames(df) <- c("alpha", "se")
+df$county <- rownames(df)
+
+df %>% 
+  mutate(county = str_trim(county)) %>% 
+  mutate(county = factor(county)) %>% 
+  mutate(county = fct_reorder(county, alpha)) %>% 
+  filter(county!="") %>% 
+  ggplot(aes(county,alpha)) + geom_point() + coord_flip()+
+  geom_errorbar(aes(ymin = alpha - se, ymax = alpha + se))
+```
+
+
+
+## County-specific slopes
+
+```{r}
+res <- coef(mod_hier_slopes)[[1]]["floor"]
+ses <- (attr(ranef(mod_hier_slopes)[[1]], "postVar"))[2,2,1:n_counties]
+df <- res %>% bind_cols(ses) 
+colnames(df) <- c("alpha", "se")
+df$county <- rownames(df)
+
+df %>% 
+  mutate(county = str_trim(county)) %>% 
+  mutate(county = factor(county)) %>% 
+  mutate(county = fct_reorder(county, alpha)) %>% 
+  filter(county!="") %>% 
+  ggplot(aes(county,alpha)) + geom_point() + coord_flip()+
+  geom_errorbar(aes(ymin = alpha - se, ymax = alpha + se))
+```
+
+# Hierarchical logistic regression
+
+## Hierarchical logistic regression
+
+We can easily extend the idea of modeling hierarchical data to cases where our outcome of interest is a binary variable and we want to use logistic regression. 
+
+- Recall for binary data, we have observations of our outcome $y_1, y_2, \dots, y_n$ where $y_i$ is equal to 1 if the outcome of interest occurred for observation $i$ and 0 otherwise. 
+- We are interested in estimating the probability that the outcome occurs associated with one or more covariates $X_i$, i.e. $\text{Pr}(Y_i=1|X_i)$
+- In usual logistic regression we model this as
+$$
+\text{logit Pr}(Y_i=1|X_{i1}, \dots X_{ik}) = \beta_0 + \beta_1 X_{i1} \dots + \beta_k X_{ik}
+$$
+
+## Hierarchical logistic regression
+
+Changing the notation slightly, this is the same as 
+$$
+Y_i \sim \text{Bernoulli} (p_i)
+$$
+with 
+$$
+\text{logit }p_i = \beta_0 + \dots 
+$$
+So for hierarchical logistic regression we can model the probabilities of interest ($p_i$'s) with a hierarchical set-up
+
+## Motivating example
+
+Abortion outcomes in Uganda
+
+- Data from 2018 PMA survey (via IPUMS)
+- Interested in factors associated with women ever having an abortion
+- Outcome of interest: 'ever had abortion (yes/no)' 
+- Notes: dropping don't knows, including 'unsuccessful abortions' in 'yes'. 
+- More notes: Self-reported abortion is very likely to be under-reported
+
+
+# Some graphs
+
+## Proportion by region
+
+```{r}
+library(here)
+d <- read_csv(here("data/pma.csv"))
+
+d <- d %>% filter(age>9)
+
+props <- d %>% 
+  group_by(region) %>% 
+  summarize(prop_abo = mean(abortion)) %>% 
+  mutate(region = fct_reorder(region, prop_abo)) 
+ggplot(props, aes(region, prop_abo)) + geom_bar(stat = "identity", fill = "firebrick4") + 
+  coord_flip() + 
+  ylab("proportion of women surveyed who have had an abortion")+
+  theme_bw(base_size = 14)
+```
+
+## Proportion by age group
+
+```{r}
+age_groups <- seq(0, 45, by = 5)
+d$age_group <- as.numeric(as.character(cut(d$age, 
+                   breaks= c(age_groups, Inf), 
+                   labels = age_groups, 
+                   right = FALSE)))
+
+props_age <- d %>% 
+  group_by(age_group) %>% 
+  summarize(prop_abo = mean(abortion)) 
+ggplot(props_age, aes(age_group, prop_abo)) + 
+  geom_line() + 
+  geom_point() + 
+  labs(y = "proportion reporting ever had an abortion", x = "age group")+
+  theme_bw(base_size = 14)
+
+```
+
+## Relationship with HDI
+
+```{r}
+prop_hdi <- d %>% 
+  group_by(region, hdi) %>% 
+  summarize(abo = mean(abortion)) 
+
+ggplot(prop_hdi, aes(hdi, abo, label = region)) + 
+  geom_text() +
+  geom_smooth(method = "lm") + 
+  labs(y = "proportion reporting ever had an abortion", x = "HDI")+
+  theme_bw(base_size = 14)
+  
+```
+
+## Model 1
+
+Let's fit
+
+$$
+Y_i \sim \text{Bernoulli}(p_i)
+$$
+$$
+\text{logit} p_i = \alpha_{j[i]} + \beta x_i
+$$
+$$
+\alpha_j \sim N(\mu, \sigma^2)
+$$
+where
+
+- $Y_i$ refers to whether or not individual $i$ has had an abortion
+- The index $j$ refers to region
+- $x_i$ refers to age
+
+## Fit in R
+
+\tiny
+```{r, echo = TRUE}
+mod <- glmer(abortion ~ (1|region)+age, data = d, family = "binomial")
+summary(mod)
+```
+
+## Region-specific intercepts
+
+```{r}
+# pull out alphas
+nregions <- length(unique(d$region))
+alphas <- coef(mod)[[1]]["(Intercept)"]
+alphas <- alphas %>% mutate(region = rownames(alphas)) 
+ses <- attr(ranef(mod)[[1]], "postVar")[,,1:nregions]
+alphas <- alphas %>% 
+  mutate(se = ses) %>%
+  rename(alpha = '(Intercept)') %>% 
+  mutate(region = fct_reorder(region, alpha))
+rownames(alphas) <- NULL
+
+#plot
+
+ggplot(alphas, aes(region, alpha)) + geom_point() + 
+  geom_errorbar(aes(ymin = alpha - se, ymax = alpha + se)) + 
+  coord_flip() + 
+  theme_bw(base_size = 14) + ggtitle("Region-specific intercepts")
+```
+
+## Converting to probabilities
+
+What is probability of abortion for a woman aged 30 in north region? The info we need:
+
+\tiny
+```{r, echo = TRUE}
+alphas %>% filter(region == "north")
+```
+
+```{r, echo = TRUE}
+coef(summary(mod))
+```
+
+## Model 2
+
+
+$$
+Y_i \sim \text{Bernoulli}(p_i)
+$$
+$$
+\text{logit} p_i = \alpha_{j[i]} + \beta x_i
+$$
+$$
+\alpha_j \sim N(\gamma_0 + \gamma_1 z_j, \sigma^2)
+$$
+
+where everything is as before and $z_j$ is the standardized log HDI at the region level 
+
+## Fit in R
+
+\tiny
+```{r, echo = TRUE}
+d <- d %>% mutate(log_hdi_c = (log(hdi)-mean(log(hdi)))/sd(log(hdi)))
+mod2 <- glmer(abortion ~ (1|region)+age+log_hdi_c, data = d, family = "binomial")
+summary(mod2)
+```
+
+## Region-specific intercepts versus HDI
+
+```{r}
+gamma0 <- coef(summary(mod2))[1,1]
+gamma1 <- coef(summary(mod2))[3,1]
+
+alphas <- coef(mod)[[1]]["(Intercept)"]
+alphas <- alphas %>% mutate(region = rownames(alphas)) 
+ses <- attr(ranef(mod)[[1]], "postVar")[,,1:nregions]
+alphas <- alphas %>% 
+  mutate(se = ses) %>%
+  rename(alpha = '(Intercept)') %>% 
+  mutate(region = fct_reorder(region, alpha))
+rownames(alphas) <- NULL
+
+hdi <- d %>% group_by(region, hdi) %>% 
+  slice(1) %>% 
+  select(region, hdi)
+
+yhat <- hdi %>% 
+  left_join(alphas) %>% 
+  ungroup() %>% 
+  mutate(log_hdi_c = (log(hdi)-mean(log(hdi)))/sd(log(hdi))) %>% 
+  mutate(y_hat = alpha + gamma1*log_hdi_c)
+
+
+ggplot(yhat, aes(log_hdi_c, y_hat)) + 
+  geom_point()+
+  geom_errorbar(aes(ymin = y_hat - 2*se, ymax = y_hat + 2*se)) +
+   geom_abline(intercept = gamma0, slope = gamma1) +
+  ylab("logit proportion of abortion") + xlab("standardized log HDI") + 
+  theme_bw(base_size = 14)
+```
+
+## Age as factor
+
+\tiny
+```{r, echo = TRUE}
+d <- d %>% mutate(age_group = factor(age_group)) %>% 
+  mutate(age_group = fct_relevel(age_group, "20", after = 0))
+mod3 <- glmer(abortion ~ (1|region)+age_group+log_hdi_c, data = d, family = "binomial")
+coef(summary(mod3))
+```
+# Non-nested hierarchies
+
+## Non-nested hierarchies
+
+We can extend hierarchical structure to be on more than one variable, e.g. by region and age group.
+
+$$
+Y_i \sim \text{Bernoulli}(p_i)
+$$
+$$
+\text{logit} p_i = \beta_0 + \alpha_{j[i]} + \eta_{k[i]}
+$$
+$$
+\alpha_j \sim N(0, \sigma_j^2)
+$$
+and 
+$$
+\eta_k \sim N(0, \sigma_k^2)
+$$
+where $k$ refers to age group of individual $i$
+
+- Notice now everthing is centered at zero and we have a global intercept
+
+## Rewrite model
+
+
+
+## Adding non-nested hierarchies in R
+
+\tiny
+```{r, echo = TRUE}
+mod4 <- glmer(abortion ~ (1|region)+(1|age_group), data = d, family = "binomial")
+summary(mod4)
+```
+
+## Summary
+
+- Can extend hierarchical models to be varying slopes as well as intercepts
+- Can use hierarchical models in a logistic regression context where the outcome of interest is binary
+- In general, useful when you have small sample sizes in some cells (i.e. some population subgroups)
+- Standardizing covariates (minusing meand and dividing by standard deviation) is useful for interpretation (sometimes) but also to fit models
+
+# Lab - R Markdown 
+
