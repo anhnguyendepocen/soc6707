@@ -6,10 +6,10 @@ d <- read_dta("~/Downloads/pma_00001.dta")
 
 d <- d %>% 
   filter(aborev<90) %>% 
-  select(urban:aborev) %>% 
-  mutate_all(funs(as_factor(.))) %>% 
+  select(fqweight, urban:aborev) %>% 
+  mutate_at(.vars = vars(urban:aborev), funs(as_factor(.))) %>% 
   mutate(resp = 1:n()) %>% 
-  select(resp, urban:aborev)
+  select(resp, fqweight, urban:aborev)
 
 d <- d %>% 
   mutate(abortion = ifelse(aborev=="no", 0, 1)) %>% 
