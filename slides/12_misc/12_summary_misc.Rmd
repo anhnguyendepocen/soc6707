@@ -366,11 +366,15 @@ Example wesbites built with blogdown:
 
 ## High-level steps 
 
+Follow Alison Hill's blog: https://alison.rbind.io/post/new-year-new-blogdown/
+
+## High-level steps 
+
 1. Create a new folder with an RStudio project. Best to make it a git repo also (e.g. my_website) because it will be easier to get online later 
 2. Choose a Hugo theme, hugo-academic is common one to start with. Then in Rstudio type
 
 ```{r, eval = FALSE, echo = TRUE}
-blogdown::new_site(theme = "gcushen/hugo-academic")
+blogdown::new_site(theme = "wowchemy/starter-academic")
 ```
 
 This will download a bunch of files into your folder and begin "serving" your site locally (i.e. within RStudio)
@@ -399,6 +403,9 @@ Lots of good resources out there, here's a selection
 - https://alison.rbind.io/post/2017-06-12-up-and-running-with-blogdown/
 - https://masalmon.eu/2020/02/29/hugo-maintenance/
 - https://djnavarro.net/post/starting-blogdown/
+
+But Alison's blog is really the best to get started:
+https://alison.rbind.io/post/new-year-new-blogdown/
 
 
 # Thank you :)
