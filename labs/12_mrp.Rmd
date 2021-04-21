@@ -221,7 +221,7 @@ Let's run a logistic regression of whether or not an individual reported ever ha
 ## Run the model
 
 ```{r}
-mod <- brm(abortion ~ (1|region_2)+educ+ marital +age_group, data = d, family = "bernoulli")
+mod <- brm(abortion ~ (1|region_2)+educ+ marital +age_group, data = d, family = "bernoulli", silent = TRUE, refresh = 0)
 summary(mod)
 
 # optional: cf to lme4
