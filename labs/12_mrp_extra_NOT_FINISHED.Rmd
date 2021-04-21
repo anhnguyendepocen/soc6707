@@ -1,0 +1,86 @@
+---
+title: "start of mrp code"
+author: "Monica Alexander"
+date: "21/04/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+NOT FINISHED
+
+## Get predicted proportions
+
+```{r}
+get_variables(mod)
+res <- mod %>% 
+  gather_draws(r_region_2[condition, term], b_Intercept, 
+               b_educmorethanprimary, b_educprimary, 
+               b_maritalmarriedDinunion, b_maritalsingleDnevermarried, b_maritalwidowed,
+               b_age_group15, b_age_group20, b_age_group25, b_age_group30, b_age_group40)
+
+# get covariate name
+res <- res %>% 
+  mutate(covariate = case_when(str_sub(.variable, 1, 1)=="r"~ "region",
+                               str_sub(.variable, 1, 3)=="b_e" ~ "educ",
+                               str_sub(.variable, 1, 3)=="b_m" ~ "marital",
+                               str_sub(.variable, 1, 3)=="b_a" ~ "age",
+                               TRUE~ "Intercept"))
+
+# get covariate level
+res <- res %>% 
+  mutate(level = case_when(
+    covariate == "region" ~ condition,
+    covariate == "age" ~ str_extract(.variable, "[0-9]+"),
+    covariate == "educ" ~ str_remove(.variable, "b_educ"),
+    covariate == "marital" ~ str_remove(.variable, "b_marital"),
+    TRUE~ "Intercept"
+  ))
+
+## now need to tidy up educ and marital labels
+#unique(res$value)
+res <- res %>% 
+  mutate(level = case_when(
+    level == "morethanprimary" ~ "more than primary",
+    level == "marriedDinunion" ~ "married/in union",
+    level == "singleDnevermarried" ~ "single/never married",
+    TRUE ~ level
+  ))
+
+# tidy up
+
+res <- res %>% 
+  ungroup() %>% 
+  select(.chain, .iteration, .draw, .value, covariate, level)
+
+```
+
+Now we need to calculate these for every group. First, initiate a tibble with all possible combinations:
+
+```{r}
+regions <- unique(d$region_2)
+marital_groups <- unique(d$marital)
+educ_groups  <- unique(d$educ)
+
+pred_df <- tibble(region_2 = NA, marital = NA, educ = NA, age_group = NA) %>% 
+  tidyr::complete(region_2 = regions, 
+                  marital = marital_groups,
+                  educ = educ_groups, 
+                  age_group = age_groups) %>% 
+  mutate_all(.funs = funs(as_factor(.))) %>% 
+  drop_na() %>% 
+  mutate(age_group = fct_relevel(age_group, "35", after = 0)) %>% 
+  filter(age_group != "45")
+```
+
+```{r}
+test <- pred_df[1,]
+
+res %>% 
+  filter(covariate=="region_2"&level==test$region_2)
+
+```
+
+

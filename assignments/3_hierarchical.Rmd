@@ -136,8 +136,6 @@ ces %>%
   geom_text() + geom_smooth(method = "lm")
 ```
 ```{r}
-hist(ces$hh_income[ces$hh_income<10^6])
-
 # might be nice to do income category
 
 income_groups <- c(seq(0, 2.2*10^5, by = 20000))
